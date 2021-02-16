@@ -33,18 +33,23 @@ class TestCase(unittest.TestCase):
         number_of_edges = gen_random_graph(n=8, filepath=filepath, weighted=True)
 
         answer_pred = WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath)
+        print(f'ANSWER PRED: {answer_pred}')
         dens_pred = WFind_Density(answer_pred, filepath)
 
         all_subgraphs = list(itertools.product([0, 1], repeat=number_of_nodes))
         dens_ans = -1
+        subgr_ans = []
         for subgr in all_subgraphs:
             cur_subgr_indices = []
             for i in range(number_of_nodes):
                 if subgr[i] == 0:
                     cur_subgr_indices.append(i)
             if cur_subgr_indices != []:
+                was_ans = dens_ans
                 dens_ans = max(dens_ans, WFind_Density(cur_subgr_indices, filepath))
-
+                if dens_ans > was_ans:
+                    subgr_ans = cur_subgr_indices
+        print(f'BRUTE FORCE ANS: {subgr_ans}')
         self.assertEqual(dens_pred, dens_ans)
 
 
