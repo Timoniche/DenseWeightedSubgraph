@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import cooler
 import pandas as pd
 import numpy as np
+import inspect
 
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 from HiCUtils import zeros_to_nan, normalize_intra
@@ -32,19 +33,34 @@ def heatmap(arr, plot_title):
     plt.show()
 
 
-def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoints, cluster):
+'''
+cluster - both i,j in chromothripsis
+cluster periphery - i or j in chromothripsis
+sv - neither i or j in chromothripsis (simple sv)
+'''
+
+
+def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, cluster):
     plt.title(plot_title)
     plt.imshow(arr, cmap='hot', interpolation='nearest')
     labeled_sv = False
-    for b in breakpoints:
+    for b in breakpoint_edges:
         if not labeled_sv:
             plt.scatter(b[0], b[1], s=150, c='blue', marker='o', label='sv')
             labeled_sv = True
         else:
             plt.scatter(b[0], b[1], s=150, c='blue', marker='o')
-    labeled_cluster = False
-    for b in breakpoints:
+    labeled_periphery = False
+    for b in breakpoint_edges:
         if b[0] in cluster or b[1] in cluster:
+            if not labeled_periphery:
+                plt.scatter(b[0], b[1], s=150, c='orange', marker='o', label='periphery cluster')
+                labeled_periphery = True
+            else:
+                plt.scatter(b[0], b[1], s=150, c='orange', marker='o')
+    labeled_cluster = False
+    for b in breakpoint_edges:
+        if b[0] in cluster and b[1] in cluster:
             if not labeled_cluster:
                 plt.scatter(b[0], b[1], s=150, c='green', marker='o', label='cluster')
                 labeled_cluster = True
@@ -66,6 +82,10 @@ def bps_to_bins_with_resolution(bp1, bp2, resolution_bases):
     return (int(bp1 / resolution_bases), int(bp2 / resolution_bases))
 
 
+def f_proximity(dist):
+    return (1.0 / dist) ** 2
+
+
 def analyze_donor(coolpath, csvpath, chr_num):
     c = cooler.Cooler(coolpath)
     resolution = c.info['bin-size']
@@ -84,20 +104,27 @@ def analyze_donor(coolpath, csvpath, chr_num):
     filepath = f'breakpoints/chr{chr_num}.txt'
     number_of_edges = 0
     number_of_nodes = -1
+    all_bins = set()
+    for b in bin_ij_coordinates:
+        all_bins.add(b[0])
+        all_bins.add(b[1])
+    all_bins = list(all_bins)
     with open(filepath, 'w') as outfile:
-        for b in bin_ij_coordinates:
-            i = b[0]
-            j = b[1]
-            if i == j:
-                continue
-            number_of_nodes = max(number_of_nodes, max(i, j))
-            dist = dist_mat[i][j]
-            close_f = 1.0 / dist
-            outfile.write(f'{i} {j} {close_f}\n')
-            number_of_edges += 1
+        for i_idx in range(len(all_bins)):
+            for j_idx in range(i_idx + 1, len(all_bins)):
+                i = all_bins[i_idx]
+                j = all_bins[j_idx]
+                number_of_nodes = max(number_of_nodes, max(i, j))
+                dist = dist_mat[i][j]
+                close_f = f_proximity(dist)
+                number_of_edges += 1
+                outfile.write(f'{i} {j} {close_f}\n')
 
-    cluster_bins = WFind_Densest_Subgraph(number_of_nodes + 5, number_of_edges, filepath)
-    heatmap_with_breakpoints_and_cluster(mat_norm, f'normed hic & breakpoints chr{chr_num}', bin_ij_coordinates,
+    some_delta_just_for_sure = 5
+    cluster_bins = WFind_Densest_Subgraph(number_of_nodes + some_delta_just_for_sure, number_of_edges, filepath)
+    heatmap_with_breakpoints_and_cluster(mat_norm,
+                                         f'normed hic & breakpoints chr{chr_num}\n{inspect.getsource(f_proximity)}',
+                                         bin_ij_coordinates,
                                          cluster_bins)
     print(cluster_bins)
     print(WFind_Density(cluster_bins, filepath))
