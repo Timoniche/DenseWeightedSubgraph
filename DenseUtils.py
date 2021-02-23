@@ -126,9 +126,18 @@ def analyze_donor(coolpath, csvpath, chr_num):
                                          f'normed hic & breakpoints chr{chr_num}\n{inspect.getsource(f_proximity)}',
                                          bin_ij_coordinates,
                                          cluster_bins)
-    print(cluster_bins)
     print(WFind_Density(cluster_bins, filepath))
-
+    print(f'clusters {cluster_bins}')
+    periphery = set()
+    for b in bin_ij_coordinates:
+        i = b[0]
+        j = b[1]
+        if i in cluster_bins and j not in cluster_bins:
+            periphery.add(j)
+        if j in cluster_bins and i not in cluster_bins:
+            periphery.add(i)
+    print(f'periphery: {periphery}')
+    print(f'all sv: {all_bins}')
 
 def main():
     analyze_donor(coolpath='healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool',
