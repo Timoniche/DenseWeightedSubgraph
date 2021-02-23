@@ -107,9 +107,10 @@ def main():
     number_of_nodes = int(input("Enter number of nodes: "))
     number_of_edges = int(input("Enter number of edges: "))
 
-    answer = WFind_Densest_Subgraph(number_of_nodes, number_of_edges, "edges_w.txt")
+    filepath = 'breakpoints/chr10.txt'
+    answer = WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath)
     print(answer)
-    print(WFind_Density(answer, "edges_w.txt"))
+    print(WFind_Density(answer, filepath))
 
 
 if __name__ == '__main__':

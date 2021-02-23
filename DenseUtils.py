@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import cooler
 import pandas as pd
-from IPython.core.display import display
-from matplotlib.patches import Circle
+import numpy as np
 
+from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 from HiCUtils import zeros_to_nan, normalize_intra
 
 
@@ -32,11 +32,25 @@ def heatmap(arr, plot_title):
     plt.show()
 
 
-def heatmap_with_breakpoints(arr, plot_title, breakpoints):
+def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoints, cluster):
     plt.title(plot_title)
     plt.imshow(arr, cmap='hot', interpolation='nearest')
+    labeled_sv = False
     for b in breakpoints:
-        plt.scatter(b[0], b[1], s=150, c='blue', marker='o')
+        if not labeled_sv:
+            plt.scatter(b[0], b[1], s=150, c='blue', marker='o', label='sv')
+            labeled_sv = True
+        else:
+            plt.scatter(b[0], b[1], s=150, c='blue', marker='o')
+    labeled_cluster = False
+    for b in breakpoints:
+        if b[0] in cluster or b[1] in cluster:
+            if not labeled_cluster:
+                plt.scatter(b[0], b[1], s=150, c='green', marker='o', label='cluster')
+                labeled_cluster = True
+            else:
+                plt.scatter(b[0], b[1], s=150, c='green', marker='o')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.show()
 
 
@@ -64,7 +78,29 @@ def analyze_donor(coolpath, csvpath, chr_num):
     bin_ij_coordinates = []
     for idx, row in patient_csv_chr.iterrows():
         bin_ij_coordinates.append(bps_to_bins_with_resolution(int(row['end1']), int(row['end2']), resolution))
-    heatmap_with_breakpoints(mat_norm, f'normed hic & breakpoints chr{chr_num}', bin_ij_coordinates)
+
+    dist_mat = np.load(f'dists_npy/dists_npychr{chr_num}.npy')
+
+    filepath = f'breakpoints/chr{chr_num}.txt'
+    number_of_edges = 0
+    number_of_nodes = -1
+    with open(filepath, 'w') as outfile:
+        for b in bin_ij_coordinates:
+            i = b[0]
+            j = b[1]
+            if i == j:
+                continue
+            number_of_nodes = max(number_of_nodes, max(i, j))
+            dist = dist_mat[i][j]
+            close_f = 1.0 / dist
+            outfile.write(f'{i} {j} {close_f}\n')
+            number_of_edges += 1
+
+    cluster_bins = WFind_Densest_Subgraph(number_of_nodes + 5, number_of_edges, filepath)
+    heatmap_with_breakpoints_and_cluster(mat_norm, f'normed hic & breakpoints chr{chr_num}', bin_ij_coordinates,
+                                         cluster_bins)
+    print(cluster_bins)
+    print(WFind_Density(cluster_bins, filepath))
 
 
 def main():
