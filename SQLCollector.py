@@ -1,6 +1,8 @@
 import configparser
 import os
 import sys
+import warnings
+
 import psycopg2
 
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
@@ -14,6 +16,15 @@ def unique_donors(cur):
     for row in rows:
         donors.append(row[0])
     return donors
+
+
+def ddl(con):
+    cur = con.cursor()
+    try:
+        cur.execute(open(sqlpath + '/ddl.sql', "r").read())
+    except BaseException as e:
+        warnings.warn(e.__str__())
+        con.rollback()
 
 
 def collect_donor_info(donor, cur):
@@ -33,6 +44,7 @@ def main():
             host="localhost",
             port="5432"
     ) as con:
+        ddl(con)
         cur = con.cursor()
         donors = unique_donors(cur)
         donors = donors[:10]
