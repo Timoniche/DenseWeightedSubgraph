@@ -1,0 +1,1 @@
+![alt text](https://github.com/Timoniche/DenseWeightedSubgraph/blob/main/chromo.png)
