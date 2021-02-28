@@ -1,0 +1,1 @@
+SELECT DISTINCT donor_id FROM sv_intra;
