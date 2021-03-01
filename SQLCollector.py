@@ -5,6 +5,8 @@ import warnings
 
 import psycopg2
 
+from DonorAnalyzer import analyze_donor
+
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 sqlpath = script_dir + '/sql_scripts'
 
@@ -27,10 +29,6 @@ def ddl(con):
         con.rollback()
 
 
-def collect_donor_info(donor, cur):
-    pass
-
-
 def main():
     config = configparser.ConfigParser()
     config.read(script_dir + r'/application.properties')
@@ -49,7 +47,7 @@ def main():
         donors = unique_donors(cur)
         donors = donors[:10]
         for donor in donors:
-            # collect_donor_info(donor, cur)
+            analyze_donor(donor, cur)
             print(donor)
 
 
