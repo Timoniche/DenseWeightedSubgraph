@@ -48,7 +48,7 @@ def main():
         donors = donors[:10]
         for donor in donors:
             analyze_donor(donor, cur)
-            print(donor)
+            # print(donor)
 
 
 if __name__ == '__main__':

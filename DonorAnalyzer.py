@@ -3,4 +3,8 @@ def f_proximity(dist):
 
 
 def analyze_donor(donor, cur):
-    pass
+    cur.execute(f'SELECT * FROM sv_intra \
+                WHERE donor_id = \'{donor}\'')
+    rows = cur.fetchall()
+    for row in rows:
+        print(row)
