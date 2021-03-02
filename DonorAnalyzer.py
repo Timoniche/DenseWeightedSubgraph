@@ -12,11 +12,38 @@ from HiCUtils import zeros_to_nan, normalize_intra
 def f_proximity(dist):
     return (1.0 / dist) ** 2
 
+
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def analyze_donor(donor, cur, cooler):
+def insert_dense(con, info_id, dense):
+    cur = con.cursor()
+    cur.execute(
+        f'INSERT INTO densities (info_id, density) VALUES (\'{info_id}\', \'{dense}\')'
+    )
+    con.commit()
+
+
+def insert_donorinfo(con, donor, chr_n, f_id):
+    cur = con.cursor()
+    cur.execute(
+        f'INSERT INTO donorinfo (donor_id, chr, function_id) VALUES (\'{donor}\', \'{chr_n}\', \'{f_id}\')'
+    )
+    con.commit()
+
+
+def get_info_id(con, donor, chr_n, f_id):
+    cur = con.cursor()
+    cur.execute(
+        f'SELECT info_id FROM donorinfo WHERE donor_id = \'{donor}\' AND chr = \'{chr_n}\' AND function_id = \'{f_id}\''
+    )
+    row = cur.fetchone()
+    return row[0]
+
+
+def analyze_donor(donor, con, cooler):
+    cur = con.cursor()
     print(donor)
     regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
     cur.execute(
@@ -38,7 +65,10 @@ def analyze_donor(donor, cur, cooler):
         else:
             chr_bins_map[chr_n].append((bin1, bin2))
 
+    f_id = 1
     for (chr_n, bin_pairs) in chr_bins_map.items():
+        # insert_donorinfo(con, donor, chr_n, f_id)
+
         all_bins = set()
         number_of_edges = 0
         number_of_nodes = -1
@@ -83,9 +113,12 @@ def analyze_donor(donor, cur, cooler):
                                              bin_pairs,
                                              cluster_bins,
                                              save_path=donorspath + f'/{donor}/{chr_n}.png')
-        print(WFind_Density(cluster_bins, filepath))
+        dens = WFind_Density(cluster_bins, filepath)
+        print(dens)
         print(f'clusters {cluster_bins}')
         periphery = set()
+        info_id = get_info_id(con, donor, chr_n, f_id)
+        insert_dense(con, info_id, dens)
         for b in bin_pairs:
             i = b[0]
             j = b[1]

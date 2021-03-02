@@ -1,4 +1,5 @@
 import configparser
+import inspect
 import os
 import sys
 import time
@@ -7,7 +8,7 @@ import warnings
 import cooler
 import psycopg2
 
-from DonorAnalyzer import analyze_donor
+from DonorAnalyzer import analyze_donor, f_proximity
 
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 sqlpath = script_dir + '/sql_scripts'
@@ -31,6 +32,14 @@ def ddl(con):
         con.rollback()
 
 
+def insert_proximity(con):
+    cur = con.cursor()
+    code = inspect.getsource(f_proximity)
+    cur.execute(
+        f'INSERT INTO proximity (function_code) VALUES (\'{code}\')'
+    )
+    con.commit()
+
 def main():
     t1 = time.time()
 
@@ -49,11 +58,13 @@ def main():
             port="5432"
     ) as con:
         ddl(con)
+        # insert_proximity(con) todo: only for first run!
+
         cur = con.cursor()
         donors = unique_donors(cur)
         donors = donors[:10]
         for donor in donors:
-            analyze_donor(donor, cur, c)
+            analyze_donor(donor, con, c)
 
     t2 = time.time()
     print(f'took {t2 - t1} sec')
