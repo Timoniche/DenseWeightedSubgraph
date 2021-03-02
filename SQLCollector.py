@@ -3,6 +3,7 @@ import os
 import sys
 import warnings
 
+import cooler
 import psycopg2
 
 from DonorAnalyzer import analyze_donor
@@ -35,6 +36,8 @@ def main():
     user = config['DEFAULT']['pcawg.user']
     password = config['DEFAULT']['pcawg.password']
 
+    c = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+
     with psycopg2.connect(
             database="pcawg",
             user=user,
@@ -47,8 +50,7 @@ def main():
         donors = unique_donors(cur)
         donors = donors[:10]
         for donor in donors:
-            analyze_donor(donor, cur)
-            # print(donor)
+            analyze_donor(donor, cur, c)
 
 
 if __name__ == '__main__':

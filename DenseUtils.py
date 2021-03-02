@@ -79,7 +79,7 @@ def hic(filepath, chr):
 
 
 def bps_to_bins_with_resolution(bp1, bp2, resolution_bases):
-    return (int(bp1 / resolution_bases), int(bp2 / resolution_bases))
+    return int(bp1 / resolution_bases), int(bp2 / resolution_bases)
 
 
 def f_proximity(dist):
@@ -138,6 +138,7 @@ def analyze_donor(coolpath, csvpath, chr_num):
             periphery.add(i)
     print(f'periphery: {periphery}')
     print(f'all sv: {all_bins}')
+
 
 def main():
     analyze_donor(coolpath='healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool',
