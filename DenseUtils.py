@@ -40,7 +40,7 @@ sv - neither i or j in chromothripsis (simple sv)
 '''
 
 
-def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, cluster):
+def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, cluster, save_path):
     plt.title(plot_title)
     plt.imshow(arr, cmap='hot', interpolation='nearest')
     labeled_sv = False
@@ -67,6 +67,7 @@ def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, clus
             else:
                 plt.scatter(b[0], b[1], s=150, c='green', marker='o')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.savefig(save_path)
     plt.show()
 
 
@@ -125,7 +126,8 @@ def analyze_donor(coolpath, csvpath, chr_num):
     heatmap_with_breakpoints_and_cluster(mat_norm,
                                          f'normed hic & breakpoints chr{chr_num}\n{inspect.getsource(f_proximity)}',
                                          bin_ij_coordinates,
-                                         cluster_bins)
+                                         cluster_bins,
+                                         'breakpoints')
     print(WFind_Density(cluster_bins, filepath))
     print(f'clusters {cluster_bins}')
     periphery = set()

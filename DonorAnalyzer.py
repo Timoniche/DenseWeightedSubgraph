@@ -81,7 +81,8 @@ def analyze_donor(donor, cur, cooler):
         heatmap_with_breakpoints_and_cluster(mat_norm,
                                              f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
                                              bin_pairs,
-                                             cluster_bins)
+                                             cluster_bins,
+                                             save_path=donorspath + f'/{donor}/{chr_n}.png')
         print(WFind_Density(cluster_bins, filepath))
         print(f'clusters {cluster_bins}')
         periphery = set()
