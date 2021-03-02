@@ -1,6 +1,7 @@
 import configparser
 import os
 import sys
+import time
 import warnings
 
 import cooler
@@ -31,6 +32,8 @@ def ddl(con):
 
 
 def main():
+    t1 = time.time()
+
     config = configparser.ConfigParser()
     config.read(script_dir + r'/application.properties')
     user = config['DEFAULT']['pcawg.user']
@@ -51,6 +54,9 @@ def main():
         donors = donors[:10]
         for donor in donors:
             analyze_donor(donor, cur, c)
+
+    t2 = time.time()
+    print(f'took {t2 - t1} sec')
 
 
 if __name__ == '__main__':
