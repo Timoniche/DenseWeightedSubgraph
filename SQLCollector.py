@@ -149,8 +149,19 @@ def prostate():
         with open(filepath, 'w') as file_donors:
             for donor in donors:
                 file_donors.write("%s\n" % donor)
+        external_path = script_dir + '/donors.txt'
+        external = []
+        with open(external_path, 'r') as filesmall:
+            data = filesmall.readlines()
+            external = list(map(lambda x: re.sub(r"[\n\t\s]*", "", x), data))
+            print(f'external {len(external)}')
         # print(donors)
-        print(len(donors))
+        print(f'own {len(donors)}')
+
+        intersection_set = set.intersection(set(donors), set(external))
+        intersection_list = list(intersection_set)
+        print(f'intersection {len(intersection_list)}')
+        print(intersection_list)
 
 
 if __name__ == '__main__':
