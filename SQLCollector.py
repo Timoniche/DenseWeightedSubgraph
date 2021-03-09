@@ -1,6 +1,7 @@
 import configparser
 import inspect
 import os
+import re
 import sys
 import time
 import warnings
@@ -23,6 +24,18 @@ def unique_donors(cur):
     return donors
 
 
+def unique_prostate_donors(cur):
+    donors = []
+    cur.execute('SELECT DISTINCT sv_intra.donor_id FROM sv_intra ' +
+                'INNER JOIN donor_tumour ON ' +
+                'sv_intra.donor_id = submitted_donor_id ' +
+                'WHERE histology_tier2 = \'Prostate\'')
+    rows = cur.fetchall()
+    for row in rows:
+        donors.append(row[0])
+    return donors
+
+
 def ddl(con):
     cur = con.cursor()
     try:
@@ -39,6 +52,13 @@ def insert_proximity(con):
         f'INSERT INTO proximity (function_code) VALUES (\'{code}\')'
     )
     con.commit()
+
+
+def find_type_by_donor(cur, donor):
+    cur.execute(f'SELECT histology_tier2 FROM donor_tumour WHERE submitted_donor_id = \'{donor}\'')
+    rows = cur.fetchall()
+    return rows
+
 
 def main():
     t1 = time.time()
@@ -70,5 +90,71 @@ def main():
     print(f'took {t2 - t1} sec')
 
 
+def check_donors():
+    with psycopg2.connect(
+            database="pcawg",
+            user='',
+            password='',
+            host="localhost",
+            port="5432"
+    ) as con:
+        cur = con.cursor()
+        all = unique_donors(cur)
+        all = set(all)
+        print(len(all))
+        # print(all, '\n')
+        filepath = script_dir + '/donors.txt'
+        with open(filepath, 'r') as filesmall:
+            data = filesmall.readlines()
+            data = list(map(lambda x: re.sub(r"[\n\t\s]*", "", x), data))
+            print(len(data))
+            # print(data)
+            # for donor in data:
+            #     if donor not in all:
+            #         print(f'{donor} in all')
+
+
+def donors_tumour_type_test():
+    with psycopg2.connect(
+            database="pcawg",
+            user='',
+            password='',
+            host="localhost",
+            port="5432"
+    ) as con:
+        cur = con.cursor()
+        filepath = script_dir + '/donors.txt'
+        with open(filepath, 'r') as filesmall:
+            data = filesmall.readlines()
+            data = list(map(lambda x: re.sub(r"[\n\t\s]*", "", x), data))
+            for donor in data:
+                t_type = find_type_by_donor(cur, donor)
+                if not t_type:
+                    warnings.warn('There is no such donor in the donor_tumour')
+                else:
+                    print(t_type)
+
+
+def prostate():
+    with psycopg2.connect(
+            database="pcawg",
+            user='',
+            password='',
+            host="localhost",
+            port="5432"
+    ) as con:
+        cur = con.cursor()
+        donors = unique_prostate_donors(cur)
+        filepath = script_dir + '/my_donors.txt'
+        with open(filepath, 'w') as file_donors:
+            for donor in donors:
+                file_donors.write("%s\n" % donor)
+        # print(donors)
+        print(len(donors))
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    # check_donors()
+    # donors_tumour_type_test()
+    prostate()
