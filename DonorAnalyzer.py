@@ -94,23 +94,32 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository, hic_plot):
 
 def plot_donor_info(donor, f_id, rep: DonorRepository):
     chr_densities = []
+    chr_cluster_size = []
+    chr_periphery_size = []
     for chri in range(1, 22):
         info_id = rep.get_info_id(donor, chri, f_id)
         if info_id == -1:
             chr_densities.append(0)
+            chr_cluster_size.append(0)
+            chr_periphery_size.append(0)
             continue
         cluster = rep.get_cluster(info_id)
         periphery = rep.get_periphery(info_id)
         density = rep.get_density(info_id)
         chr_densities.append(density)
         print(f'{donor} {chri} info cl{cluster} per{periphery} d={density}')
+        chr_cluster_size.append(len(cluster))
+        chr_periphery_size.append(len(periphery))
     chr_pos = np.arange(21)
-    plt.bar(chr_pos, chr_densities, align='center')
+    plt.bar(chr_pos, chr_densities, align='center', label='density')
+    plt.bar(chr_pos, chr_cluster_size, align='center', alpha=0.2, label='cluster_size')
+    # plt.bar(chr_pos, chr_periphery_size, align='center', label='periphery_size')
     plt.xlabel('chrN')
-    plt.ylabel('density')
+    plt.ylabel('info')
     xticks = [f'{i}' for i in range(1, 22)]
     plt.xticks(chr_pos, xticks)
     plt.title(f'{donor} f_id={f_id}')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.show()
 
 
@@ -137,7 +146,7 @@ def main():
 
         donors = rep.unique_prostate_donors()
         f_count = 1
-        for donor in donors[:5]:
+        for donor in donors:
             for f_id in range(1, f_count + 1):
                 analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=False)
 
