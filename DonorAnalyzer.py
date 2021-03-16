@@ -12,11 +12,16 @@ from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
 
+
 # from HiCUtils import zeros_to_nan, normalize_intra
 
 
 def f_proximity(dist):
     return (1.0 / dist) ** 2
+
+
+def f_neg_pow3(dist):
+    return (1.0 / dist) ** 3
 
 
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
@@ -123,13 +128,12 @@ def plot_donor_info(donor, f_id, rep: DonorRepository):
     plt.show()
 
 
-def all_info_donors_plots():
+def all_info_donors_plots(f_id_arr):
     t1 = time.time()
     with DonorRepository() as rep:
         donors = rep.unique_prostate_donors()
-        f_count = 1
         for donor in donors[:5]:
-            for f_id in range(1, f_count + 1):
+            for f_id in f_id_arr:
                 plot_donor_info(donor, f_id, rep)
 
     t2 = time.time()
@@ -143,11 +147,12 @@ def main():
     with DonorRepository() as rep:
         rep.ddl()
         rep.insert_proximity(f_proximity)
+        rep.insert_proximity(f_neg_pow3)
 
         donors = rep.unique_prostate_donors()
-        f_count = 1
+        f_ids = [2]
         for donor in donors:
-            for f_id in range(1, f_count + 1):
+            for f_id in f_ids:
                 analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=False)
 
     t2 = time.time()
@@ -155,5 +160,6 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
-    all_info_donors_plots()
+    main()
+    # f_id_arr = [2]
+    # all_info_donors_plots(f_id_arr)
