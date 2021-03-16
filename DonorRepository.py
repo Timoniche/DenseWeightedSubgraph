@@ -62,9 +62,16 @@ class DonorRepository:
     def insert_dense(self, info_id, dense):
         try:
             self.cur.execute(
-                f'INSERT INTO densities (info_id, density) VALUES (\'{info_id}\', \'{dense}\')'
+                'SELECT * FROM densities ' +
+                f'WHERE info_id = \'{info_id}\' ' +
+                f'  AND density = \'{dense}\' '
             )
-            self.con.commit()
+            rows = self.cur.fetchall()
+            if not rows:
+                self.cur.execute(
+                    f'INSERT INTO densities (info_id, density) VALUES (\'{info_id}\', \'{dense}\')'
+                )
+                self.con.commit()
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()
@@ -72,9 +79,17 @@ class DonorRepository:
     def insert_donorinfo(self, donor, chr_n, f_id):
         try:
             self.cur.execute(
-                f'INSERT INTO donorinfo (donor_id, chr, function_id) VALUES (\'{donor}\', \'{chr_n}\', \'{f_id}\')'
+                'SELECT * FROM donorinfo ' +
+                f'WHERE donor_id = \'{donor}\' ' +
+                f'  AND chr = \'{chr_n}\' ' +
+                f'  AND function_id = \'{f_id}\' '
             )
-            self.con.commit()
+            rows = self.cur.fetchall()
+            if not rows:
+                self.cur.execute(
+                    f'INSERT INTO donorinfo (donor_id, chr, function_id) VALUES (\'{donor}\', \'{chr_n}\', \'{f_id}\')'
+                )
+                self.con.commit()
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()
@@ -83,9 +98,15 @@ class DonorRepository:
         try:
             code = inspect.getsource(f)
             self.cur.execute(
-                f'INSERT INTO proximity (function_code) VALUES (\'{code}\')'
+                ' SELECT * FROM proximity ' +
+                f'WHERE function_code = \'{code}\' '
             )
-            self.con.commit()
+            rows = self.cur.fetchall()
+            if not rows:
+                self.cur.execute(
+                    f'INSERT INTO proximity (function_code) VALUES (\'{code}\')'
+                )
+                self.con.commit()
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()

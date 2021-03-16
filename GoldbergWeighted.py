@@ -43,7 +43,7 @@ def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath):
     difference = 1.0 / (number_of_nodes * (number_of_nodes + 1))
     # print difference, " diff"
     while (max_degree - min_degree >= difference):
-        print("...")
+        # print("...")
         # print "max - min = ", max_degree - min_degree
         least_density = (max_degree + min_degree) / 2.0
         # print "ld--->", least_density
@@ -91,15 +91,16 @@ def Wmake_graph(number_of_nodes, number_of_edges, least_density, filepath):
         # print "s -- ",number_of_edges,"-->", nodes[i], "--",number_of_edges + 2*least_density - degrees[str(i)], "-->t\n"
     source_segment = []
     '''Computes the max-flow in the graph'''
-    print(f'max flow is {graph.maxflow()}')
-    print(f'least_density is {least_density}')
+    max_flow = graph.maxflow()
+    # print(f'max flow is {max_flow}')
+    # print(f'least_density is {least_density}')
     '''The following section of code finds which node belongs to which cutset.'''
     for i in nodes:
         # print nodes[i] ,"--->", graph.get_segment(nodes[i])
         if (graph.get_segment(nodes[i]) == 0):
             source_segment.append(nodes[i])
     # print degrees
-    print(source_segment)
+    # print(source_segment)
     return source_segment
 
 

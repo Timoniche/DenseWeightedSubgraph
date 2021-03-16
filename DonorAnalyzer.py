@@ -46,8 +46,8 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository):
         filepath = donorspath + f'/{donor}/{chr_n}'
 
         mat = cooler.matrix(balance=False).fetch(f'chr{chr_n}')
-        mat_nan = zeros_to_nan(mat)
-        mat_norm = normalize_intra(mat_nan)
+        # mat_nan = zeros_to_nan(mat) # better to precount it for every chr
+        # mat_norm = normalize_intra(mat_nan)
 
         with open(filepath, 'w') as outfile:
             for i_idx in range(len(all_bins)):
@@ -65,7 +65,7 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository):
 
         some_delta_just_for_sure = 5
         cluster_bins = WFind_Densest_Subgraph(number_of_nodes + some_delta_just_for_sure, number_of_edges, filepath)
-        heatmap_with_breakpoints_and_cluster(mat_norm,
+        heatmap_with_breakpoints_and_cluster(mat,
                                              f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
                                              bin_pairs,
                                              cluster_bins,
