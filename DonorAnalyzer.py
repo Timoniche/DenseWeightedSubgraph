@@ -1,10 +1,14 @@
 import errno
 import inspect
+import time
 
+import cooler
 import numpy as np
 import os
 import sys
-from DenseUtils import bps_to_bins_with_resolution, heatmap_with_breakpoints_and_cluster
+from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist
+from DonorRepository import DonorRepository
+from DonorService import collect_chr_bins_map_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 from HiCUtils import zeros_to_nan, normalize_intra
 
@@ -17,57 +21,15 @@ script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def insert_dense(con, info_id, dense):
-    cur = con.cursor()
-    cur.execute(
-        f'INSERT INTO densities (info_id, density) VALUES (\'{info_id}\', \'{dense}\')'
-    )
-    con.commit()
-
-
-def insert_donorinfo(con, donor, chr_n, f_id):
-    cur = con.cursor()
-    cur.execute(
-        f'INSERT INTO donorinfo (donor_id, chr, function_id) VALUES (\'{donor}\', \'{chr_n}\', \'{f_id}\')'
-    )
-    con.commit()
-
-
-def get_info_id(con, donor, chr_n, f_id):
-    cur = con.cursor()
-    cur.execute(
-        f'SELECT info_id FROM donorinfo WHERE donor_id = \'{donor}\' AND chr = \'{chr_n}\' AND function_id = \'{f_id}\''
-    )
-    row = cur.fetchone()
-    return row[0]
-
-
-def analyze_donor(donor, con, cooler):
-    cur = con.cursor()
+def analyze_donor(donor, cooler, f_id, rep: DonorRepository):
     print(donor)
-    regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
-    cur.execute(
-        f'SELECT * FROM sv_intra \
-        WHERE donor_id = \'{donor}\' \
-        AND chr SIMILAR TO \'{regex_up_to_21}\'')
-    rows = cur.fetchall()
-
-    chr_bins_map = {}
+    svs = rep.get_donor_sv_chr_1_21(donor)
 
     resolution = cooler.info['bin-size']
+    chr_bins_map = collect_chr_bins_map_with_resolution(svs, resolution)
 
-    for row in rows:
-        chr_n, bp1, bp2, _ = row
-        bin1, bin2 = bps_to_bins_with_resolution(bp1, bp2, resolution)
-        chr_breakpoints = chr_bins_map.get(chr_n, [])
-        if not chr_breakpoints:
-            chr_bins_map[chr_n] = [(bin1, bin2)]
-        else:
-            chr_bins_map[chr_n].append((bin1, bin2))
-
-    f_id = 1
     for (chr_n, bin_pairs) in chr_bins_map.items():
-        # insert_donorinfo(con, donor, chr_n, f_id)
+        rep.insert_donorinfo(donor, chr_n, f_id)
 
         all_bins = set()
         number_of_edges = 0
@@ -79,12 +41,7 @@ def analyze_donor(donor, con, cooler):
         all_bins = list(all_bins)
 
         dirpath = donorspath + f'/{donor}/{chr_n}'
-        if not os.path.exists(os.path.dirname(dirpath)):
-            try:
-                os.makedirs(os.path.dirname(dirpath))
-            except OSError as exc:  # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
+        create_path_if_not_exist(dirpath)
 
         filepath = donorspath + f'/{donor}/{chr_n}'
 
@@ -117,8 +74,8 @@ def analyze_donor(donor, con, cooler):
         print(dens)
         print(f'clusters {cluster_bins}')
         periphery = set()
-        info_id = get_info_id(con, donor, chr_n, f_id)
-        insert_dense(con, info_id, dens)
+        info_id = rep.get_info_id(donor, chr_n, f_id)
+        rep.insert_dense(info_id, dens)
         for b in bin_pairs:
             i = b[0]
             j = b[1]
@@ -128,3 +85,25 @@ def analyze_donor(donor, con, cooler):
                 periphery.add(i)
         print(f'periphery: {periphery}')
         print(f'all sv: {all_bins}')
+
+
+def main():
+    t1 = time.time()
+
+    cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    with DonorRepository() as rep:
+        rep.ddl()
+        rep.insert_proximity(f_proximity)
+
+        donors = rep.unique_prostate_donors()
+        f_count = 1
+        for donor in donors[:5]:
+            for f_id in range(1, f_count + 1):
+                analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep)
+
+    t2 = time.time()
+    print(f'took {t2 - t1} sec')
+
+
+if __name__ == '__main__':
+    main()

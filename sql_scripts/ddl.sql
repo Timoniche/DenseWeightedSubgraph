@@ -1,7 +1,7 @@
 CREATE TABLE Proximity
 (
     function_id SERIAL NOT NULL PRIMARY KEY,
-    function_code VARCHAR(1000) NOT NULL
+    function_code VARCHAR(1000) UNIQUE NOT NULL
 );
 
 CREATE TABLE DonorInfo

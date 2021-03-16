@@ -1,3 +1,6 @@
+import errno
+import os
+
 import matplotlib.pyplot as plt
 import cooler
 import pandas as pd
@@ -82,6 +85,14 @@ def hic(filepath, chr):
 def bps_to_bins_with_resolution(bp1, bp2, resolution_bases):
     return int(bp1 / resolution_bases), int(bp2 / resolution_bases)
 
+
+def create_path_if_not_exist(dirpath):
+    if not os.path.exists(os.path.dirname(dirpath)):
+        try:
+            os.makedirs(os.path.dirname(dirpath))
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
 def f_proximity(dist):
     return (1.0 / dist) ** 2
