@@ -10,6 +10,7 @@ from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
+import matplotlib.pyplot as plt
 
 # from HiCUtils import zeros_to_nan, normalize_intra
 
@@ -91,6 +92,41 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository, hic_plot):
         print(f'all sv: {all_bins}')
 
 
+def plot_donor_info(donor, f_id, rep: DonorRepository):
+    chr_densities = []
+    for chri in range(1, 22):
+        info_id = rep.get_info_id(donor, chri, f_id)
+        if info_id == -1:
+            chr_densities.append(0)
+            continue
+        cluster = rep.get_cluster(info_id)
+        periphery = rep.get_periphery(info_id)
+        density = rep.get_density(info_id)
+        chr_densities.append(density)
+        print(f'{donor} {chri} info cl{cluster} per{periphery} d={density}')
+    chr_pos = np.arange(21)
+    plt.bar(chr_pos, chr_densities, align='center')
+    plt.xlabel('chrN')
+    plt.ylabel('density')
+    xticks = [f'{i}' for i in range(1, 22)]
+    plt.xticks(chr_pos, xticks)
+    plt.title(f'{donor} f_id={f_id}')
+    plt.show()
+
+
+def all_info_donors_plots():
+    t1 = time.time()
+    with DonorRepository() as rep:
+        donors = rep.unique_prostate_donors()
+        f_count = 1
+        for donor in donors[:5]:
+            for f_id in range(1, f_count + 1):
+                plot_donor_info(donor, f_id, rep)
+
+    t2 = time.time()
+    print(f'plots took {t2 - t1} sec')
+
+
 def main():
     t1 = time.time()
 
@@ -106,8 +142,9 @@ def main():
                 analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=False)
 
     t2 = time.time()
-    print(f'took {t2 - t1} sec')
+    print(f'filling db took {t2 - t1} sec')
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    all_info_donors_plots()

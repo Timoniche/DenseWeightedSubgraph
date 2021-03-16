@@ -56,7 +56,39 @@ class DonorRepository:
             f'WHERE donor_id = \'{donor}\' AND chr = \'{chr_n}\' AND function_id = \'{f_id}\' '
         )
         row = self.cur.fetchone()
+        if not row:
+            return -1
         return row[0]
+
+    def get_cluster(self, info_id) -> list:
+        cluster = []
+        self.cur.execute(
+            ' SELECT bp FROM clusters ' +
+            f'WHERE info_id = \'{info_id}\' '
+        )
+        rows = self.cur.fetchall()
+        for row in rows:
+            cluster.append(row[0])
+        return cluster
+
+    def get_density(self, info_id) -> float:
+        self.cur.execute(
+            ' SELECT density FROM densities ' +
+            f'WHERE info_id = {info_id} '
+        )
+        row = self.cur.fetchone()
+        return row[0]
+
+    def get_periphery(self, info_id) -> list:
+        periphery = []
+        self.cur.execute(
+            ' SELECT bp FROM periphery ' +
+            f'WHERE info_id = \'{info_id}\' '
+        )
+        rows = self.cur.fetchall()
+        for row in rows:
+            periphery.append(row[0])
+        return periphery
 
     def get_donor_sv_chr_1_21(self, donor):
         regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
