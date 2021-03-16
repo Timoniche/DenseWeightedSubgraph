@@ -27,7 +27,15 @@ class DonorRepository:
 
     def ddl(self):
         try:
-            self.cur.execute(open(self.sqlpath + '/ddl.sql', "r").read())
+            self.cur.execute('SELECT ' +
+                             'to_regclass(\'clusters\'), '
+                             'to_regclass(\'proximity\'), '
+                             'to_regclass(\'densities\'), '
+                             'to_regclass(\'periphery\'), '
+                             'to_regclass(\'proximity\') ')
+            rows = self.cur.fetchall()
+            if None in rows[0]:
+                self.cur.execute(open(self.sqlpath + '/ddl.sql', "r").read())
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()
@@ -58,6 +66,62 @@ class DonorRepository:
             AND chr SIMILAR TO \'{regex_up_to_21}\'')
         rows = self.cur.fetchall()
         return rows
+
+    def insert_cluster(self, info_id, cluster: tuple):
+        try:
+            if len(cluster) == 1:  # tuple of size 1 is (value,) -> SQL IN throws error to pass arg
+                self.cur.execute(
+                    'SELECT * FROM clusters ' +
+                    f'WHERE info_id = \'{info_id}\' ' +
+                    f'  AND bp = {cluster[0]} '
+                )
+                rows = self.cur.fetchall()
+            elif cluster:
+                self.cur.execute(
+                    'SELECT * FROM clusters ' +
+                    f'WHERE info_id = \'{info_id}\' ' +
+                    f'  AND bp IN {cluster} '
+                )
+                rows = self.cur.fetchall()
+            else:
+                rows = ()
+            if len(rows) != len(cluster):
+                for bp in cluster:
+                    self.cur.execute(
+                        f'INSERT INTO clusters (info_id, bp) VALUES (\'{info_id}\', \'{bp}\')'
+                    )
+                self.con.commit()
+        except BaseException as e:
+            warnings.warn(e.__str__())
+            self.con.rollback()
+
+    def insert_periphery(self, info_id, periphery: tuple):
+        try:
+            if len(periphery) == 1:  # tuple of size 1 is (value,) -> SQL IN throws error to pass arg
+                self.cur.execute(
+                    'SELECT * FROM periphery ' +
+                    f'WHERE info_id = \'{info_id}\' ' +
+                    f'  AND bp = {periphery[0]} '
+                )
+                rows = self.cur.fetchall()
+            elif periphery:
+                self.cur.execute(
+                    'SELECT * FROM periphery ' +
+                    f'WHERE info_id = \'{info_id}\' ' +
+                    f'  AND bp IN {periphery} '
+                )
+                rows = self.cur.fetchall()
+            else:
+                rows = ()
+            if len(rows) != len(periphery):
+                for bp in periphery:
+                    self.cur.execute(
+                        f'INSERT INTO periphery (info_id, bp) VALUES (\'{info_id}\', \'{bp}\')'
+                    )
+                self.con.commit()
+        except BaseException as e:
+            warnings.warn(e.__str__())
+            self.con.rollback()
 
     def insert_dense(self, info_id, dense):
         try:

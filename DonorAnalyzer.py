@@ -1,4 +1,3 @@
-import errno
 import inspect
 import time
 
@@ -10,7 +9,9 @@ from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
-from HiCUtils import zeros_to_nan, normalize_intra
+
+
+# from HiCUtils import zeros_to_nan, normalize_intra
 
 
 def f_proximity(dist):
@@ -21,7 +22,7 @@ script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def analyze_donor(donor, cooler, f_id, rep: DonorRepository):
+def analyze_donor(donor, cooler, f_id, rep: DonorRepository, hic_plot):
     print(donor)
     svs = rep.get_donor_sv_chr_1_21(donor)
 
@@ -65,16 +66,18 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository):
 
         some_delta_just_for_sure = 5
         cluster_bins = WFind_Densest_Subgraph(number_of_nodes + some_delta_just_for_sure, number_of_edges, filepath)
-        heatmap_with_breakpoints_and_cluster(mat,
-                                             f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
-                                             bin_pairs,
-                                             cluster_bins,
-                                             save_path=donorspath + f'/{donor}/{chr_n}.png')
+        if hic_plot:
+            heatmap_with_breakpoints_and_cluster(mat,
+                                                 f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
+                                                 bin_pairs,
+                                                 cluster_bins,
+                                                 save_path=donorspath + f'/{donor}/{chr_n}.png')
         dens = WFind_Density(cluster_bins, filepath)
         print(dens)
         print(f'clusters {cluster_bins}')
         periphery = set()
         info_id = rep.get_info_id(donor, chr_n, f_id)
+        rep.insert_cluster(info_id, tuple(cluster_bins))
         rep.insert_dense(info_id, dens)
         for b in bin_pairs:
             i = b[0]
@@ -84,6 +87,7 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository):
             if j in cluster_bins and i not in cluster_bins:
                 periphery.add(i)
         print(f'periphery: {periphery}')
+        rep.insert_periphery(info_id, tuple(list(periphery)))
         print(f'all sv: {all_bins}')
 
 
@@ -99,7 +103,7 @@ def main():
         f_count = 1
         for donor in donors[:5]:
             for f_id in range(1, f_count + 1):
-                analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep)
+                analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=False)
 
     t2 = time.time()
     print(f'took {t2 - t1} sec')

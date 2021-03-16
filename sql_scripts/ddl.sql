@@ -19,7 +19,7 @@ CREATE TABLE Clusters
 (
     info_id INTEGER NOT NULL,
     bp INT NOT NULL,
-    PRIMARY KEY (info_id),
+    PRIMARY KEY (info_id, bp),
     FOREIGN KEY (info_id) REFERENCES DonorInfo (info_id)
 );
 
@@ -27,7 +27,7 @@ CREATE TABLE Periphery
 (
     info_id INTEGER NOT NULL,
     bp INT NOT NULL,
-    PRIMARY KEY (info_id),
+    PRIMARY KEY (info_id, bp),
     FOREIGN KEY (info_id) REFERENCES DonorInfo (info_id)
 );
 
