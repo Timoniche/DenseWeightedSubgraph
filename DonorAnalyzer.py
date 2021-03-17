@@ -118,7 +118,7 @@ def plot_donor_info(donor, f_id, rep: DonorRepository):
     chr_pos = np.arange(21)
     plt.bar(chr_pos, chr_densities, align='center', label='density')
     plt.bar(chr_pos, chr_cluster_size, align='center', alpha=0.2, label='cluster_size')
-    # plt.bar(chr_pos, chr_periphery_size, align='center', label='periphery_size')
+    plt.bar(chr_pos, chr_periphery_size, align='center', label='periphery_size')
     plt.xlabel('chrN')
     plt.ylabel('info')
     xticks = [f'{i}' for i in range(1, 22)]
@@ -159,7 +159,28 @@ def main():
     print(f'filling db took {t2 - t1} sec')
 
 
+def hist_patients(f_id):
+    t1 = time.time()
+    denss = []
+    with DonorRepository() as rep:
+        donors = rep.unique_prostate_donors()
+        for donor in donors:
+            # for i in range(1, 22):
+                i = 1
+                info_id = rep.get_info_id(donor, i, f_id)
+                dens = 0
+                if info_id != -1:
+                    dens = rep.get_density(info_id)
+                    denss.append(dens)
+                denss.append(dens)
+    plt.hist(denss, bins=100)
+    plt.title(f'f_id={f_id}')
+    plt.show()
+    t2 = time.time()
+    print(f'plots took {t2 - t1} sec')
+
 if __name__ == '__main__':
-    main()
+    # main()
+    # hist_patients(1)
     # f_id_arr = [2]
-    # all_info_donors_plots(f_id_arr)
+    all_info_donors_plots([1])
