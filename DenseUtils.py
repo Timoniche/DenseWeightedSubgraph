@@ -1,11 +1,14 @@
 import errno
 import os
+import statistics
 
 import matplotlib.pyplot as plt
 import cooler
 import pandas as pd
 import numpy as np
 import inspect
+
+from matplotlib import rcParams
 
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 from HiCUtils import zeros_to_nan, normalize_intra
@@ -29,6 +32,21 @@ def all_oe(c):
 
     return pd.concat(all_df, ignore_index=True)
 
+
+def plot_distribution(arr, store_path, function_code, label, color='null'):
+    rcParams.update({'figure.autolayout': True})
+    if color != 'null':
+        plt.hist(arr, bins=100, color=color)
+    else:
+        plt.hist(arr, bins=100)
+    dens_med = statistics.median(arr)
+    dens_quantile = np.quantile(arr, 0.75)
+    plt.title(f'{label}, {function_code}' +
+              'median=%0.2f\n' % dens_med +
+              'quantile=%0.2f' % dens_quantile)
+    create_path_if_not_exist(store_path)
+    plt.savefig(store_path)
+    plt.show()
 
 def heatmap(arr, plot_title):
     plt.title(plot_title)

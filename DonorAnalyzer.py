@@ -6,7 +6,7 @@ import numpy as np
 import os
 import sys
 from matplotlib import rcParams
-from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist
+from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
@@ -183,38 +183,17 @@ def hist_patients(f_id):
                     denss.append(dens)
                     clusters.append(cluster)
                     peripheries.append(periphery)
+        code = rep.get_proximity_code(f_id)
 
-        rcParams.update({'figure.autolayout': True})
-        plt.hist(denss, bins=100)
-        dens_med = statistics.median(denss)
-        dens_quantile = np.quantile(denss, 0.75)
-        plt.title(f'densitiy, {rep.get_proximity_code(f_id)}' +
-                  'median=%0.2f\n' % dens_med +
-                  'quantile=%0.2f' % dens_quantile)
         dens_path = f'distribution/densities/{f_id}.png'
-        create_path_if_not_exist(dens_path)
-        plt.savefig(dens_path)
-        plt.show()
-        clusters_med = statistics.median(clusters)
-        clusters_quantile = np.quantile(clusters, 0.75)
-        plt.hist(clusters, bins=100, color='green')
-        plt.title(f'clusters, {rep.get_proximity_code(f_id)}' +
-                  f'median={clusters_med}\n' +
-                  f'quantile={clusters_quantile}')
+        plot_distribution(denss, dens_path, code, 'density')
+
         cluster_path = f'distribution/clusters/{f_id}.png'
-        create_path_if_not_exist(cluster_path)
-        plt.savefig(f'distribution/clusters/{f_id}.png')
-        plt.show()
-        periphery_med = statistics.median(peripheries)
-        periphery_quantile = np.quantile(peripheries, 0.75)
-        plt.hist(peripheries, bins=100, color='orange')
-        plt.title(f'peripheries, {rep.get_proximity_code(f_id)}' +
-                  f'median={periphery_med}\n' +
-                  f'quantile={periphery_quantile}')
+        plot_distribution(clusters, cluster_path, code, 'clusters', 'green')
+
         periphery_path = f'distribution/peripheries/{f_id}.png'
-        create_path_if_not_exist(periphery_path)
-        plt.savefig(f'distribution/peripheries/{f_id}.png')
-        plt.show()
+        plot_distribution(peripheries,periphery_path, code, 'peripheries', 'orange')
+
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
 
