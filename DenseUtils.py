@@ -33,7 +33,7 @@ def all_oe(c):
     return pd.concat(all_df, ignore_index=True)
 
 
-def plot_distribution(arr, store_path, function_code, label, color='null'):
+def plot_distribution(arr, store_path, function_code, label, xlabel, color='null'):
     rcParams.update({'figure.autolayout': True})
     if color != 'null':
         plt.hist(arr, bins=100, color=color)
@@ -45,6 +45,8 @@ def plot_distribution(arr, store_path, function_code, label, color='null'):
               'median=%0.2f\n' % dens_med +
               'quantile=%0.2f' % dens_quantile)
     create_path_if_not_exist(store_path)
+    plt.xlabel(xlabel)
+    plt.ylabel('bucket count')
     plt.savefig(store_path)
     plt.show()
 

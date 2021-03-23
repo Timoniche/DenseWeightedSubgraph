@@ -185,13 +185,13 @@ def hist_patients(f_id):
         code = rep.get_proximity_code(f_id)
 
         dens_path = f'distribution/densities/{f_id}.png'
-        plot_distribution(denss, dens_path, code, 'density')
+        plot_distribution(denss, dens_path, code, 'density', 'density')
 
         cluster_path = f'distribution/clusters/{f_id}.png'
-        plot_distribution(clusters, cluster_path, code, 'clusters', 'green')
+        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', 'green')
 
         periphery_path = f'distribution/peripheries/{f_id}.png'
-        plot_distribution(peripheries,periphery_path, code, 'peripheries', 'orange')
+        plot_distribution(peripheries,periphery_path, code, 'peripheries', 'periphery_size', 'orange')
 
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
