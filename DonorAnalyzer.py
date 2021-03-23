@@ -5,39 +5,33 @@ import cooler
 import numpy as np
 import os
 import sys
-from matplotlib import rcParams
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
-import statistics
 
 
 # from HiCUtils import zeros_to_nan, normalize_intra
-
-
-def f_proximity(dist):
-    return (1.0 / dist) ** 2
-
-
-def f_neg_pow3(dist):
-    return (1.0 / dist) ** 3
-
+from functions import functions
+from generate_functions import generate_functions, max_range_pow
 
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def analyze_donor(donor, cooler, f_id, rep: DonorRepository, hic_plot):
+def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot):
     print(donor)
     svs = rep.get_donor_sv_chr_1_21(donor)
 
     resolution = cooler.info['bin-size']
     chr_bins_map = collect_chr_bins_map_with_resolution(svs, resolution)
 
+    #chr_n = 17
+    #bin_pairs = chr_bins_map['17']
     for (chr_n, bin_pairs) in chr_bins_map.items():
+    #for i in range(1):
         rep.insert_donorinfo(donor, chr_n, f_id)
 
         all_bins = set()
@@ -74,6 +68,7 @@ def analyze_donor(donor, cooler, f_id, rep: DonorRepository, hic_plot):
 
         some_delta_just_for_sure = 5
         cluster_bins = WFind_Densest_Subgraph(number_of_nodes + some_delta_just_for_sure, number_of_edges, filepath)
+        assert cluster_bins != [], 'not enough accuracy in find densest subgraph algorithm'
         if hic_plot:
             heatmap_with_breakpoints_and_cluster(mat,
                                                  f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
@@ -142,21 +137,25 @@ def all_info_donors_plots(f_id_arr):
     print(f'plots took {t2 - t1} sec')
 
 
+#run generate_functions.py before
 def main():
     t1 = time.time()
 
     cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
     with DonorRepository() as rep:
         rep.ddl()
-        rep.insert_proximity(f_proximity)
-        rep.insert_proximity(f_neg_pow3)
+        generate_functions()
+        for f in functions:
+            rep.insert_proximity(f)
 
-        # donors = rep.unique_prostate_donors()
-        donors = ["0077_CRUK_PC_0077"]
-        f_ids = [2]
+        donors = rep.unique_prostate_donors()
+        # donors = ['A31-0018_CRUK_PC_0018']
+        f_ids = [i for i in range(1, max_range_pow + 1)]
+        # f_ids = [9]
         for donor in donors:
             for f_id in f_ids:
-                analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=True)
+                analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep, hic_plot=False)
+                print(f'f_id={f_id} filled')
 
     t2 = time.time()
     print(f'filling db took {t2 - t1} sec')
@@ -200,7 +199,8 @@ def hist_patients(f_id):
 
 if __name__ == '__main__':
     # main()
-    hist_patients(1)
+    for i in range(1, max_range_pow + 1):
+        hist_patients(i)
 
     # f_id_arr = [2]
     # all_info_donors_plots([1])

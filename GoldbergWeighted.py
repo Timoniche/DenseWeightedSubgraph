@@ -28,6 +28,7 @@ def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath):
 
     file = open(filepath, "r")
     sum_w = 0.0
+    sum_ = 0
     while True:
         edge = file.readline()
         if not edge:
@@ -35,12 +36,13 @@ def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath):
         from_node, to_node, w = edge.split()
         w = float(w)
         sum_w += w
+        sum_ += 1
     file.close()
 
     max_degree = sum_w
 
     subgraph = []
-    difference = 1.0 / (number_of_nodes * (number_of_nodes + 1))
+    difference = (1.0 / (number_of_nodes * (number_of_nodes + 1))) * (sum_w / sum_)
     # print difference, " diff"
     while (max_degree - min_degree >= difference):
         # print("...")
