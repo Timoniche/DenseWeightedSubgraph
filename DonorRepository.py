@@ -90,6 +90,13 @@ class DonorRepository:
             periphery.append(row[0])
         return periphery
 
+    def get_proximity_code(self, function_id):
+        self.cur.execute(
+            f'SELECT function_code FROM proximity WHERE function_id = {function_id}'
+        )
+        row = self.cur.fetchone()
+        return row[0]
+
     def get_donor_sv_chr_1_21(self, donor):
         regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
         self.cur.execute(

@@ -5,12 +5,14 @@ import cooler
 import numpy as np
 import os
 import sys
+from matplotlib import rcParams
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
+import statistics
 
 
 # from HiCUtils import zeros_to_nan, normalize_intra
@@ -149,11 +151,12 @@ def main():
         rep.insert_proximity(f_proximity)
         rep.insert_proximity(f_neg_pow3)
 
-        donors = rep.unique_prostate_donors()
+        # donors = rep.unique_prostate_donors()
+        donors = ["0077_CRUK_PC_0077"]
         f_ids = [2]
         for donor in donors:
             for f_id in f_ids:
-                analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=False)
+                analyze_donor(donor=donor, cooler=cool, f_id=f_id, rep=rep, hic_plot=True)
 
     t2 = time.time()
     print(f'filling db took {t2 - t1} sec')
@@ -162,25 +165,63 @@ def main():
 def hist_patients(f_id):
     t1 = time.time()
     denss = []
+    clusters = []
+    peripheries = []
     with DonorRepository() as rep:
         donors = rep.unique_prostate_donors()
         for donor in donors:
-            # for i in range(1, 22):
-                i = 1
+            for i in range(1, 22):
                 info_id = rep.get_info_id(donor, i, f_id)
-                dens = 0
                 if info_id != -1:
                     dens = rep.get_density(info_id)
+                    cluster = len(rep.get_cluster(info_id))
+                    periphery = len(rep.get_periphery(info_id))
+                    # print(cluster)
+                    # if cluster == 52:
+                    #    print(info_id)
+                    # denss.append(dens)
                     denss.append(dens)
-                denss.append(dens)
-    plt.hist(denss, bins=100)
-    plt.title(f'f_id={f_id}')
-    plt.show()
+                    clusters.append(cluster)
+                    peripheries.append(periphery)
+
+        rcParams.update({'figure.autolayout': True})
+        plt.hist(denss, bins=100)
+        dens_med = statistics.median(denss)
+        dens_quantile = np.quantile(denss, 0.75)
+        plt.title(f'densitiy, {rep.get_proximity_code(f_id)}' +
+                  'median=%0.2f\n' % dens_med +
+                  'quantile=%0.2f' % dens_quantile)
+        dens_path = f'distribution/densities/{f_id}.png'
+        create_path_if_not_exist(dens_path)
+        plt.savefig(dens_path)
+        plt.show()
+        clusters_med = statistics.median(clusters)
+        clusters_quantile = np.quantile(clusters, 0.75)
+        plt.hist(clusters, bins=100, color='green')
+        plt.title(f'clusters, {rep.get_proximity_code(f_id)}' +
+                  f'median={clusters_med}\n' +
+                  f'quantile={clusters_quantile}')
+        cluster_path = f'distribution/clusters/{f_id}.png'
+        create_path_if_not_exist(cluster_path)
+        plt.savefig(f'distribution/clusters/{f_id}.png')
+        plt.show()
+        periphery_med = statistics.median(peripheries)
+        periphery_quantile = np.quantile(peripheries, 0.75)
+        plt.hist(peripheries, bins=100, color='orange')
+        plt.title(f'peripheries, {rep.get_proximity_code(f_id)}' +
+                  f'median={periphery_med}\n' +
+                  f'quantile={periphery_quantile}')
+        periphery_path = f'distribution/peripheries/{f_id}.png'
+        create_path_if_not_exist(periphery_path)
+        plt.savefig(f'distribution/peripheries/{f_id}.png')
+        plt.show()
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
 
+
 if __name__ == '__main__':
     # main()
-    # hist_patients(1)
+    hist_patients(1)
+
     # f_id_arr = [2]
-    all_info_donors_plots([1])
+    # all_info_donors_plots([1])
