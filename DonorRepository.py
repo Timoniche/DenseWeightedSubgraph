@@ -114,6 +114,22 @@ class DonorRepository:
         rows = self.cur.fetchall()
         return rows
 
+    def get_chromo(self, donor, chr):
+        self.cur.execute(
+            ' SELECT ' +
+            '   donor_unique_id, ' +
+            '  "Chr" , ' +
+            '  "Start", ' +
+            '  "End" ' +
+            '  FROM chromo ' +
+            f'WHERE donor_unique_id SIMILAR TO \'%{donor}\' ' +
+            f'  AND "Chr" = \'{chr}\' '
+        )
+        row = self.cur.fetchone()
+        if not row:
+            return None, None, None, None
+        return row
+
     def insert_cluster(self, info_id, cluster: tuple):
         try:
             if len(cluster) == 1:  # tuple of size 1 is (value,) -> SQL IN throws error to pass arg

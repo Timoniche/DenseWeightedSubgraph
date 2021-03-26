@@ -7,7 +7,7 @@ import os
 import sys
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution
 from DonorRepository import DonorRepository
-from DonorService import collect_chr_bins_map_with_resolution
+from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
@@ -206,14 +206,27 @@ def hist_patients(f_id):
 
 
 def find_chromos(infoids):
+    chromos = []
     with DonorRepository() as rep:
         for id in infoids:
             donor, chr, _ = rep.get_by_infoid(id)
-            print(f'donor={donor} chr={chr}')
             cluster = rep.get_cluster(id)
             low = min(cluster)
             up = max(cluster)
-            print(f'min: {low}, max: {up}')
+            chromos.append((donor, chr, low, up))
+    return chromos
+
+
+def compare_chromos(chromos):
+    cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    resolution = cool.info['bin-size']
+    with DonorRepository() as rep:
+        for donor, chr, low, up in chromos:
+            print('my   ', donor, f'chr{chr}', low, up)
+            _donor, _chr, _low, _up = rep.get_chromo(donor, chr)
+            if _low and _up:
+                _low, _up = bps_to_bins_with_resolution(_low, _up, resolution)
+            print('seek ', donor, f'chr{_chr}', _low, _up)
             print()
 
 
@@ -221,9 +234,11 @@ if __name__ == '__main__':
     # main()
     # for i in range(1, max_range_pow + 1):
     # for i in range(1, 4):
+
     i = 3
     infoids = hist_patients(i)
-    find_chromos(infoids)
+    chromos = find_chromos(infoids)
+    compare_chromos(chromos)
 
     # f_id_arr = [2]
     # all_info_donors_plots([1])
