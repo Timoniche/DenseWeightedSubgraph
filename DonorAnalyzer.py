@@ -12,7 +12,6 @@ from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
 
-
 # from HiCUtils import zeros_to_nan, normalize_intra
 from functions import functions
 from generate_functions import generate_functions, max_range_pow
@@ -28,10 +27,10 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
     resolution = cooler.info['bin-size']
     chr_bins_map = collect_chr_bins_map_with_resolution(svs, resolution)
 
-    #chr_n = 17
-    #bin_pairs = chr_bins_map['17']
+    # chr_n = 17
+    # bin_pairs = chr_bins_map['17']
     for (chr_n, bin_pairs) in chr_bins_map.items():
-    #for i in range(1):
+        # for i in range(1):
         rep.insert_donorinfo(donor, chr_n, f_id)
 
         all_bins = set()
@@ -137,7 +136,7 @@ def all_info_donors_plots(f_id_arr):
     print(f'plots took {t2 - t1} sec')
 
 
-#run generate_functions.py before
+# run generate_functions.py before
 def main():
     t1 = time.time()
 
@@ -154,7 +153,8 @@ def main():
         # f_ids = [9]
         for donor in donors:
             for f_id in f_ids:
-                analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep, hic_plot=False)
+                analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep,
+                              hic_plot=False)
                 print(f'f_id={f_id} filled')
 
     t2 = time.time()
@@ -163,9 +163,10 @@ def main():
 
 def hist_patients(f_id):
     t1 = time.time()
-    denss = []
+    denss_info = []
     clusters = []
     peripheries = []
+    infoids = []
     with DonorRepository() as rep:
         donors = rep.unique_prostate_donors()
         for donor in donors:
@@ -179,30 +180,50 @@ def hist_patients(f_id):
                     # if cluster == 52:
                     #    print(info_id)
                     # denss.append(dens)
-                    denss.append(dens)
+                    denss_info.append((dens, info_id))
                     clusters.append(cluster)
                     peripheries.append(periphery)
         code = rep.get_proximity_code(f_id)
 
         dens_path = f'distribution/densities/{f_id}.png'
-        plot_distribution(denss, dens_path, code, 'density', 'density')
+        ratio = 0.99
+        denss = list(map(lambda x: x[0], denss_info))
+        top_ratio_infos = sorted(denss_info, key=lambda p: p[0])
+        cnt = len(denss)
+        for i in range(int(cnt * ratio), cnt):
+            infoids.append(top_ratio_infos[i][1])
+        plot_distribution(denss, dens_path, code, 'density', 'density', ratio=ratio)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
-        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', 'green')
+        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', 'green', ratio=ratio)
 
         periphery_path = f'distribution/peripheries/{f_id}.png'
-        plot_distribution(peripheries,periphery_path, code, 'peripheries', 'periphery_size', 'orange')
+        plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', 'orange', ratio=ratio)
 
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
+    return infoids
+
+
+def find_chromos(infoids):
+    with DonorRepository() as rep:
+        for id in infoids:
+            donor, chr, _ = rep.get_by_infoid(id)
+            print(f'donor={donor} chr={chr}')
+            cluster = rep.get_cluster(id)
+            low = min(cluster)
+            up = max(cluster)
+            print(f'min: {low}, max: {up}')
+            print()
 
 
 if __name__ == '__main__':
     # main()
     # for i in range(1, max_range_pow + 1):
-    for i in range(1, 4):
-    #i = 2
-        hist_patients(i)
+    # for i in range(1, 4):
+    i = 3
+    infoids = hist_patients(i)
+    find_chromos(infoids)
 
     # f_id_arr = [2]
     # all_info_donors_plots([1])

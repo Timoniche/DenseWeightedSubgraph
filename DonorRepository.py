@@ -97,6 +97,14 @@ class DonorRepository:
         row = self.cur.fetchone()
         return row[0]
 
+    def get_by_infoid(self, info_id):
+        self.cur.execute(
+            ' SELECT donor_id, chr, function_id FROM donorinfo ' +
+            f'WHERE info_id = {info_id} '
+        )
+        triplet = self.cur.fetchone()
+        return triplet
+
     def get_donor_sv_chr_1_21(self, donor):
         regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
         self.cur.execute(
