@@ -33,12 +33,26 @@ def all_oe(c):
     return pd.concat(all_df, ignore_index=True)
 
 
-def plot_distribution(arr, store_path, function_code, label, xlabel, color='null'):
+def find_first_predicate_index(arr, predicate):
+    for i in range(len(arr)):
+        if predicate(arr[i]):
+            return i
+    return -1
+
+
+def plot_distribution(arr, store_path, function_code, label, xlabel, color='null', ratio=0.975):
     rcParams.update({'figure.autolayout': True})
+    buckets_cnt = 100
     if color != 'null':
-        plt.hist(arr, bins=100, color=color)
+        cnts_in_bucket, bins, patches = plt.hist(arr, bins=buckets_cnt, color=color)
     else:
-        plt.hist(arr, bins=100)
+        cnts_in_bucket, bins, patches = plt.hist(arr, bins=buckets_cnt)
+    cnts_sum = np.cumsum(cnts_in_bucket)
+    index_ratio_from = find_first_predicate_index(cnts_sum, lambda x: x >= len(arr) * ratio)
+    assert index_ratio_from != -1, 'density in the ratio percentile must exist'
+    bars = len(patches)
+    for i in range(index_ratio_from, bars):
+        patches[i].set_facecolor('r')
     dens_med = statistics.median(arr)
     dens_quantile = np.quantile(arr, 0.75)
     plt.title(f'{label}, {function_code}' +
@@ -49,6 +63,7 @@ def plot_distribution(arr, store_path, function_code, label, xlabel, color='null
     plt.ylabel('bucket count')
     plt.savefig(store_path)
     plt.show()
+
 
 def heatmap(arr, plot_title):
     plt.title(plot_title)
@@ -113,6 +128,7 @@ def create_path_if_not_exist(dirpath):
         except OSError as exc:  # Guard against race condition
             if exc.errno != errno.EEXIST:
                 raise
+
 
 def f_proximity(dist):
     return (1.0 / dist) ** 2

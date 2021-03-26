@@ -199,7 +199,9 @@ def hist_patients(f_id):
 
 if __name__ == '__main__':
     # main()
-    for i in range(1, max_range_pow + 1):
+    # for i in range(1, max_range_pow + 1):
+    for i in range(1, 4):
+    #i = 2
         hist_patients(i)
 
     # f_id_arr = [2]
