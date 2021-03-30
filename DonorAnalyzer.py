@@ -161,7 +161,7 @@ def main():
     print(f'filling db took {t2 - t1} sec')
 
 
-def hist_patients(f_id):
+def hist_patients(f_id, ratio):
     t1 = time.time()
     denss_info = []
     clusters = []
@@ -186,19 +186,18 @@ def hist_patients(f_id):
         code = rep.get_proximity_code(f_id)
 
         dens_path = f'distribution/densities/{f_id}.png'
-        ratio = 0.99
         denss = list(map(lambda x: x[0], denss_info))
         top_ratio_infos = sorted(denss_info, key=lambda p: p[0])
         cnt = len(denss)
         for i in range(int(cnt * ratio), cnt):
             infoids.append(top_ratio_infos[i][1])
-        plot_distribution(denss, dens_path, code, 'density', 'density', ratio=ratio)
+        plot_distribution(denss, dens_path, code, 'density', 'density', ratio)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
-        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', 'green', ratio=ratio)
+        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, 'green')
 
         periphery_path = f'distribution/peripheries/{f_id}.png'
-        plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', 'orange', ratio=ratio)
+        plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', ratio, 'orange')
 
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
@@ -301,19 +300,65 @@ def measure_chromos(chromo_clusters):
     chromo_marker_acc = chromo_cnt / all_cnt
     print(f'marker acc: {chromo_marker_acc * 100}%')
 
-if __name__ == '__main__':
-    # main()
-    # for i in range(1, max_range_pow + 1):
-    # for i in range(1, 4):
+def all_hists(ratio):
+    #for i in range(1, 4):
+    for i in range(1, max_range_pow + 1):
+        _ = hist_patients(i, ratio=ratio)
 
+
+def seek_test():
+    cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    resolution = cool.info['bin-size']
+    with DonorRepository() as rep:
+        cnt = 0
+        no_chromo_cnt = 0
+        no_data_cnt = 0
+        chromo_cnt = 0
+        donors = rep.unique_prostate_donors()
+
+        all_patients = 0
+        ok_cnt = 0
+        for donor in donors:
+            all_patients += 1
+            ok = True
+            for i in range(1, 22):
+                cnt += 1
+                seek_donor, seek_chr, seek_low, seek_up = rep.get_chromo(donor, i)
+
+                if seek_low == -2:
+                    print('No Chromo')
+                    no_chromo_cnt += 1
+                    continue
+
+                if seek_low == -1:
+                    print('No Data')
+                    no_data_cnt += 1
+                    continue
+
+                chromo_cnt += 1
+                ok = False
+            if ok:
+                ok_cnt += 1
+
+    print(f'cnt={cnt}, no_chromo={no_chromo_cnt}, no_data={no_data_cnt}, chromo={chromo_cnt}')
+    print(f'all_patients={all_patients}, ok_cnt={ok_cnt}')
+
+
+def measure_test():
     i = 3
-    infoids = hist_patients(i)
+    infoids = hist_patients(i, ratio=0.99)
     #chromos = find_chromos(infoids)
     chromo_clusters = find_cromo_clusters(infoids)
     measure_chromos(chromo_clusters)
+    #compare_chromos
 
-    # with DonorRepository() as rep:
-    #     print(rep.get_chromo('CPCG0201', 16))
 
-    # f_id_arr = [2]
-    # all_info_donors_plots([1])
+if __name__ == '__main__':
+    # main()
+
+
+    all_hists(0.9965) #0.9965: -1,  0.975: -2
+
+    # seek_test()
+
+    # measure_test()

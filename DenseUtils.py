@@ -40,7 +40,7 @@ def find_first_predicate_index(arr, predicate):
     return -1
 
 
-def plot_distribution(arr, store_path, function_code, label, xlabel, color='null', ratio=0.975):
+def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, color='null'):
     rcParams.update({'figure.autolayout': True})
     buckets_cnt = 100
     if color != 'null':
@@ -56,8 +56,9 @@ def plot_distribution(arr, store_path, function_code, label, xlabel, color='null
     dens_med = statistics.median(arr)
     dens_quantile = np.quantile(arr, 0.75)
     plt.title(f'{label}, {function_code}' +
-              'median=%0.2f\n' % dens_med +
-              'quantile=%0.2f' % dens_quantile)
+              'median value=%0.2f\n' % dens_med +
+              'quantile value=%0.2f  ' % dens_quantile +
+              'red_percentile=%0.2f' % ratio)
     create_path_if_not_exist(store_path)
     plt.xlabel(xlabel)
     plt.ylabel('bucket count')
