@@ -114,6 +114,16 @@ class DonorRepository:
         rows = self.cur.fetchall()
         return rows
 
+    def get_donor_chr_svs(self, donor, chr):
+        self.cur.execute(
+            f'SELECT bp1, bp2 FROM sv_intra \
+                  WHERE donor_id = \'{donor}\' \
+                  AND chr = \'{chr}\'')
+        rows = self.cur.fetchall()
+        return rows
+
+    # -1 not found
+    # -2 not chromo
     def get_chromo(self, donor, chr):
         self.cur.execute(
             ' SELECT ' +
@@ -127,7 +137,9 @@ class DonorRepository:
         )
         row = self.cur.fetchone()
         if not row:
-            return None, None, None, None
+            return -1, -1, -1, -1
+        if not row[3]:
+            return -2, -2, -2, -2
         return row
 
     def insert_cluster(self, info_id, cluster: tuple):

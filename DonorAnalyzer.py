@@ -5,7 +5,7 @@ import cooler
 import numpy as np
 import os
 import sys
-from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution
+from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
@@ -217,18 +217,89 @@ def find_chromos(infoids):
     return chromos
 
 
+def find_cromo_clusters(infoids):
+    chromo_clusters = []
+    with DonorRepository() as rep:
+        for id in infoids:
+            donor, chr, _ = rep.get_by_infoid(id)
+            cluster = rep.get_cluster(id)
+            chromo_clusters.append((donor, chr, cluster))
+    return chromo_clusters
+
+
 def compare_chromos(chromos):
     cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
     resolution = cool.info['bin-size']
     with DonorRepository() as rep:
         for donor, chr, low, up in chromos:
+            donor_chr_svs_bp = rep.get_donor_chr_svs(donor, chr)
+            donor_chr_svs = list(map(lambda p: bps_to_bins_with_resolution(p[0], p[1], resolution), donor_chr_svs_bp))
+            print(donor_chr_svs)
             print('my   ', donor, f'chr{chr}', low, up)
-            _donor, _chr, _low, _up = rep.get_chromo(donor, chr)
-            if _low and _up:
-                _low, _up = bps_to_bins_with_resolution(_low, _up, resolution)
-            print('seek ', donor, f'chr{_chr}', _low, _up)
+            seek_donor, seek_chr, seek_low, seek_up = rep.get_chromo(donor, chr)
+            if seek_low and seek_up:
+                seek_low, seek_up = bps_to_bins_with_resolution(seek_low, seek_up, resolution)
+            print('seek ', donor, f'chr{seek_chr}', seek_low, seek_up)
             print()
 
+
+def measure_chromos(chromo_clusters):
+    cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    resolution = cool.info['bin-size']
+    accs = []
+    chromo_cnt = 0
+    all_cnt = 0
+    with DonorRepository() as rep:
+        for donor, chr, cluster in chromo_clusters:
+            all_cnt += 1
+
+            donor_chr_svs_bp = rep.get_donor_chr_svs(donor, chr)
+            donor_chr_svs = list(map(lambda p: bps_to_bins_with_resolution(p[0], p[1], resolution), donor_chr_svs_bp))
+            donor_chr_svs = list(filter(lambda p: abs(p[0] - p[1]) > 1, donor_chr_svs))
+            donor_chr_bps = set()
+            for p in donor_chr_svs:
+                donor_chr_bps.add(p[0])
+                donor_chr_bps.add(p[1])
+            donor_chr_bps = list(donor_chr_bps)
+
+            seek_donor, seek_chr, seek_low, seek_up = rep.get_chromo(donor, chr)
+
+            if seek_low == -2:
+                print('No Chromo')
+                continue
+
+            if seek_low == -1:
+                all_cnt -= 1
+                print('No Data')
+                continue
+
+            seek_low, seek_up = bps_to_bins_with_resolution(seek_low, seek_up, resolution)
+
+            chromo_cnt += 1
+
+            seek_vector = []
+            for bp in donor_chr_bps:
+                if seek_low <= bp <= seek_up:
+                    seek_vector.append(1)
+                else:
+                    seek_vector.append(0)
+
+            own_vector = []
+            cluster_set = set(cluster)
+            for bp in donor_chr_bps:
+                if bp in cluster_set:
+                    own_vector.append(1)
+                else:
+                    own_vector.append(0)
+
+            TP, FP, TN, FN = perf_measure(seek_vector, own_vector)
+            acc = (TP + TN) / (TP + TN + FP + FN)
+            accs.append(acc)
+            print(acc)
+    mean_chromo_acc = np.mean(np.array(accs))
+    print(f'mean chromo acc: {mean_chromo_acc * 100}%')
+    chromo_marker_acc = chromo_cnt / all_cnt
+    print(f'marker acc: {chromo_marker_acc * 100}%')
 
 if __name__ == '__main__':
     # main()
@@ -237,8 +308,12 @@ if __name__ == '__main__':
 
     i = 3
     infoids = hist_patients(i)
-    chromos = find_chromos(infoids)
-    compare_chromos(chromos)
+    #chromos = find_chromos(infoids)
+    chromo_clusters = find_cromo_clusters(infoids)
+    measure_chromos(chromo_clusters)
+
+    # with DonorRepository() as rep:
+    #     print(rep.get_chromo('CPCG0201', 16))
 
     # f_id_arr = [2]
     # all_info_donors_plots([1])
