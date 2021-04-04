@@ -10,6 +10,7 @@ import inspect
 
 from matplotlib import rcParams
 
+from DonorRepository import DonorRepository
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 from HiCUtils import zeros_to_nan, normalize_intra
 
@@ -40,9 +41,65 @@ def find_first_predicate_index(arr, predicate):
     return -1
 
 
-def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, color='null'):
+def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: DonorRepository):
+    dens_sorted_info_ids = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
+    denss = list(map(lambda p: p[0], top_ratio_infos_sorted_by_dens))
+    cnts_in_bucket, bins = np.histogram(np.array(denss), bins=buckets_cnt)
+    seek_high = []
+    seek_almost_high = []
+    seek_low = []
+    seek_almost_low = []
+    seek_no = []
+    seek_no_data = []
+    info_id_iter = 0
+    for i in range(buckets_cnt):
+        seek_high.append(0)
+        seek_almost_high.append(0)
+        seek_low.append(0)
+        seek_almost_low.append(0)
+        seek_no.append(0)
+        seek_no_data.append(0)
+        for j in range(int(cnts_in_bucket[i])):
+            info_id = dens_sorted_info_ids[info_id_iter]
+            info_id_iter += 1
+            donor, chrN, fid = rep.get_by_infoid(info_id)
+
+            _, _, _, _, label = rep.get_chromo(donor, chrN)
+            if label == -1:
+                print('No Data')
+                continue
+
+            if label == 'High confidence':
+                seek_high[i] += 1
+                print('high')
+            elif label == 'Linked to high confidence':
+                seek_almost_high[i] += 1
+                print('almost high')
+            elif label == 'Low confidence':
+                seek_low[i] += 1
+                print('low')
+            elif label == 'Linked to low confidence':
+                seek_almost_low[i] += 1
+            elif label == 'No':
+                seek_no[i] += 1
+                print('No chromo')
+
+
+    ids = np.arange(buckets_cnt)
+    data = np.array([seek_no, seek_low, seek_almost_low, seek_almost_high, seek_high])
+    bottom = np.cumsum(data, axis=0)
+    colors = ('lime', 'green', 'yellow', 'red', 'black')
+    labels = ('healthy', 'low', 'almost low', 'almost high', 'high')
+    plt.bar(ids, data[0], align='center', label=labels[0], color=colors[0])
+    for j in range(1, data.shape[0]):
+        plt.bar(ids, data[j], color=colors[j], label=labels[j], align='center', bottom=bottom[j - 1])
+    plt.legend()
+    plt.show()
+
+
+
+def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buckets_cnt, color='null'):
     rcParams.update({'figure.autolayout': True})
-    buckets_cnt = 100
     if color != 'null':
         cnts_in_bucket, bins, patches = plt.hist(arr, bins=buckets_cnt, color=color)
     else:
@@ -58,7 +115,7 @@ def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, colo
     plt.title(f'{label}, {function_code}' +
               'median value=%0.2f\n' % dens_med +
               'quantile value=%0.2f  ' % dens_quantile +
-              'red_percentile=%0.2f' % ratio)
+              'red_percentile=%0.4f' % ratio)
     create_path_if_not_exist(store_path)
     plt.xlabel(xlabel)
     plt.ylabel('bucket count')

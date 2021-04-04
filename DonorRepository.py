@@ -128,18 +128,19 @@ class DonorRepository:
         self.cur.execute(
             ' SELECT ' +
             '   donor_unique_id, ' +
-            '  "Chr" , ' +
-            '  "Start", ' +
-            '  "End" ' +
+            '   "Chr", ' +
+            '   "Start", ' +
+            '   "End", ' +
+            '   chromo_label ' +
             '  FROM chromo ' +
             f'WHERE donor_unique_id SIMILAR TO \'%{donor}\' ' +
             f'  AND "Chr" = \'{chr}\' '
         )
         row = self.cur.fetchone()
         if not row:
-            return -1, -1, -1, -1
+            return -1, -1, -1, -1, -1
         if not row[3]:
-            return -2, -2, -2, -2
+            return -2, -2, -2, -2, -2
         return row
 
     def insert_cluster(self, info_id, cluster: tuple):

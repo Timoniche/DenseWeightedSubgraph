@@ -5,7 +5,8 @@ import cooler
 import numpy as np
 import os
 import sys
-from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure
+from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
+    plot_seek_distibution
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
@@ -176,10 +177,6 @@ def hist_patients(f_id, ratio):
                     dens = rep.get_density(info_id)
                     cluster = len(rep.get_cluster(info_id))
                     periphery = len(rep.get_periphery(info_id))
-                    # print(cluster)
-                    # if cluster == 52:
-                    #    print(info_id)
-                    # denss.append(dens)
                     denss_info.append((dens, info_id))
                     clusters.append(cluster)
                     peripheries.append(periphery)
@@ -187,17 +184,23 @@ def hist_patients(f_id, ratio):
 
         dens_path = f'distribution/densities/{f_id}.png'
         denss = list(map(lambda x: x[0], denss_info))
-        top_ratio_infos = sorted(denss_info, key=lambda p: p[0])
+        top_ratio_infos_sorted_by_dens = sorted(denss_info, key=lambda p: p[0])
         cnt = len(denss)
+
         for i in range(int(cnt * ratio), cnt):
-            infoids.append(top_ratio_infos[i][1])
-        plot_distribution(denss, dens_path, code, 'density', 'density', ratio)
+            cur_id = top_ratio_infos_sorted_by_dens[i][1]
+            infoids.append(cur_id)
+
+        buckets_cnt = 100
+        plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
-        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, 'green')
+        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, buckets_cnt, 'green')
 
         periphery_path = f'distribution/peripheries/{f_id}.png'
-        plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', ratio, 'orange')
+        plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', ratio, buckets_cnt, 'orange')
+
+        plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep)
 
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
@@ -235,7 +238,7 @@ def compare_chromos(chromos):
             donor_chr_svs = list(map(lambda p: bps_to_bins_with_resolution(p[0], p[1], resolution), donor_chr_svs_bp))
             print(donor_chr_svs)
             print('my   ', donor, f'chr{chr}', low, up)
-            seek_donor, seek_chr, seek_low, seek_up = rep.get_chromo(donor, chr)
+            seek_donor, seek_chr, seek_low, seek_up, label = rep.get_chromo(donor, chr)
             if seek_low and seek_up:
                 seek_low, seek_up = bps_to_bins_with_resolution(seek_low, seek_up, resolution)
             print('seek ', donor, f'chr{seek_chr}', seek_low, seek_up)
@@ -261,10 +264,10 @@ def measure_chromos(chromo_clusters):
                 donor_chr_bps.add(p[1])
             donor_chr_bps = list(donor_chr_bps)
 
-            seek_donor, seek_chr, seek_low, seek_up = rep.get_chromo(donor, chr)
+            seek_donor, seek_chr, seek_low, seek_up, label = rep.get_chromo(donor, chr)
 
-            if seek_low == -2:
-                print('No Chromo')
+            if seek_low == -2 or label != 'High confidence':
+                print('No high confidence chromo')
                 continue
 
             if seek_low == -1:
@@ -323,8 +326,8 @@ def seek_test():
             ok = True
             for i in range(1, 22):
                 cnt += 1
-                seek_donor, seek_chr, seek_low, seek_up = rep.get_chromo(donor, i)
-
+                seek_donor, seek_chr, seek_low, seek_up, label = rep.get_chromo(donor, i)
+                print(label)
                 if seek_low == -2:
                     print('No Chromo')
                     no_chromo_cnt += 1
@@ -334,9 +337,9 @@ def seek_test():
                     print('No Data')
                     no_data_cnt += 1
                     continue
-
-                chromo_cnt += 1
-                ok = False
+                if label == 'High confidence':
+                    chromo_cnt += 1
+                    ok = False
             if ok:
                 ok_cnt += 1
 
@@ -346,7 +349,7 @@ def seek_test():
 
 def measure_test():
     i = 3
-    infoids = hist_patients(i, ratio=0.99)
+    infoids = hist_patients(i, ratio=0.8)
     #chromos = find_chromos(infoids)
     chromo_clusters = find_cromo_clusters(infoids)
     measure_chromos(chromo_clusters)
@@ -357,8 +360,8 @@ if __name__ == '__main__':
     # main()
 
 
-    all_hists(0.9965) #0.9965: -1,  0.975: -2
+    # all_hists(0.9965) #0.9965: -1,  0.975: -2
 
     # seek_test()
 
-    # measure_test()
+    measure_test()
