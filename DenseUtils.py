@@ -66,6 +66,7 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
 
             _, _, _, _, label = rep.get_chromo(donor, chrN)
             if label == -1:
+                seek_no_data[i] += 1
                 print('No Data')
                 continue
 
@@ -86,10 +87,10 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
 
 
     ids = np.arange(buckets_cnt)
-    data = np.array([seek_no, seek_low, seek_almost_low, seek_almost_high, seek_high])
+    data = np.array([seek_no_data, seek_no, seek_low, seek_almost_low, seek_almost_high, seek_high])
     bottom = np.cumsum(data, axis=0)
-    colors = ('lime', 'green', 'yellow', 'red', 'black')
-    labels = ('healthy', 'low', 'almost low', 'almost high', 'high')
+    colors = ('lightcyan', 'lime', 'green', 'yellow', 'red', 'black')
+    labels = ('no data', 'healthy', 'low', 'almost low', 'almost high', 'high')
     plt.bar(ids, data[0], align='center', label=labels[0], color=colors[0])
     for j in range(1, data.shape[0]):
         plt.bar(ids, data[j], color=colors[j], label=labels[j], align='center', bottom=bottom[j - 1])
