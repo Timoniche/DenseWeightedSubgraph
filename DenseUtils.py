@@ -41,7 +41,7 @@ def find_first_predicate_index(arr, predicate):
     return -1
 
 
-def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: DonorRepository):
+def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: DonorRepository, store_path, title):
     dens_sorted_info_ids = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
     denss = list(map(lambda p: p[0], top_ratio_infos_sorted_by_dens))
     cnts_in_bucket, bins = np.histogram(np.array(denss), bins=buckets_cnt)
@@ -67,24 +67,18 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
             _, _, _, _, label = rep.get_chromo(donor, chrN)
             if label == -1:
                 seek_no_data[i] += 1
-                print('No Data')
                 continue
 
             if label == 'High confidence':
                 seek_high[i] += 1
-                print('high')
             elif label == 'Linked to high confidence':
                 seek_almost_high[i] += 1
-                print('almost high')
             elif label == 'Low confidence':
                 seek_low[i] += 1
-                print('low')
             elif label == 'Linked to low confidence':
                 seek_almost_low[i] += 1
             elif label == 'No':
                 seek_no[i] += 1
-                print('No chromo')
-
 
     ids = np.arange(buckets_cnt)
     data = np.array([seek_no_data, seek_no, seek_low, seek_almost_low, seek_almost_high, seek_high])
@@ -95,8 +89,10 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
     for j in range(1, data.shape[0]):
         plt.bar(ids, data[j], color=colors[j], label=labels[j], align='center', bottom=bottom[j - 1])
     plt.legend()
+    plt.title(title)
+    create_path_if_not_exist(store_path)
+    plt.savefig(store_path)
     plt.show()
-
 
 
 def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buckets_cnt, color='null'):

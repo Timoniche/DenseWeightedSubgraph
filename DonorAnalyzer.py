@@ -162,7 +162,7 @@ def main():
     print(f'filling db took {t2 - t1} sec')
 
 
-def hist_patients(f_id, ratio):
+def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot=True, seek_plot=True):
     t1 = time.time()
     denss_info = []
     clusters = []
@@ -182,7 +182,6 @@ def hist_patients(f_id, ratio):
                     peripheries.append(periphery)
         code = rep.get_proximity_code(f_id)
 
-        dens_path = f'distribution/densities/{f_id}.png'
         denss = list(map(lambda x: x[0], denss_info))
         top_ratio_infos_sorted_by_dens = sorted(denss_info, key=lambda p: p[0])
         cnt = len(denss)
@@ -192,19 +191,41 @@ def hist_patients(f_id, ratio):
             infoids.append(cur_id)
 
         buckets_cnt = 100
-        plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt)
+        dens_path = f'distribution/densities/{f_id}.png'
+        if dens_plot:
+            plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
-        plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, buckets_cnt, 'green')
+        if cluster_plot:
+            plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, buckets_cnt, 'green')
 
         periphery_path = f'distribution/peripheries/{f_id}.png'
-        plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', ratio, buckets_cnt, 'orange')
+        if periphery_plot:
+            plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', ratio, buckets_cnt,
+                              'orange')
 
-        plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep)
+        seek_path = f'distribution/seek/{f_id}.png'
+        if seek_plot:
+            plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep, seek_path,
+                                  f'seek distribution\n{code}')
 
     t2 = time.time()
     print(f'plots took {t2 - t1} sec')
     return infoids
+
+
+def relation_chromo_chrs_per_donor(chromo_infoids):
+    donor_chromo_chrs_cnt = {}
+    with DonorRepository() as rep:
+        for infoid in chromo_infoids:
+            donor, chr, f_id = rep.get_by_infoid(infoid)
+            donor_chromo_chrs_cnt[donor] = donor_chromo_chrs_cnt.get(donor, 0) + 1
+    avg = 0.0
+    cnt = 0
+    for _, v in donor_chromo_chrs_cnt.items():
+        cnt += 1
+        avg += v
+    return avg / cnt
 
 
 def find_chromos(infoids):
@@ -303,10 +324,13 @@ def measure_chromos(chromo_clusters):
     chromo_marker_acc = chromo_cnt / all_cnt
     print(f'marker acc: {chromo_marker_acc * 100}%')
 
+
 def all_hists(ratio):
-    #for i in range(1, 4):
-    for i in range(1, max_range_pow + 1):
-        _ = hist_patients(i, ratio=ratio)
+    for i in range(1, 4):
+        # for i in range(1, max_range_pow + 1):
+        infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False, cluster_plot=False)
+        avg = relation_chromo_chrs_per_donor(infoids)
+        print(f'chromo chr per 1 donor = {avg} with f_id = {i}')
 
 
 def seek_test():
@@ -329,12 +353,10 @@ def seek_test():
                 seek_donor, seek_chr, seek_low, seek_up, label = rep.get_chromo(donor, i)
                 print(label)
                 if seek_low == -2:
-                    print('No Chromo')
                     no_chromo_cnt += 1
                     continue
 
                 if seek_low == -1:
-                    print('No Data')
                     no_data_cnt += 1
                     continue
                 if label == 'High confidence':
@@ -350,18 +372,17 @@ def seek_test():
 def measure_test():
     i = 3
     infoids = hist_patients(i, ratio=0.8)
-    #chromos = find_chromos(infoids)
+    # chromos = find_chromos(infoids)
     chromo_clusters = find_cromo_clusters(infoids)
     measure_chromos(chromo_clusters)
-    #compare_chromos
+    # compare_chromos
 
 
 if __name__ == '__main__':
     # main()
 
-
-    # all_hists(0.9965) #0.9965: -1,  0.975: -2
+    all_hists(0.9965)  # 0.9965: -1,  0.975: -2
 
     # seek_test()
 
-    measure_test()
+    # measure_test()
