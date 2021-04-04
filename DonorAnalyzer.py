@@ -184,16 +184,23 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
 
         denss = list(map(lambda x: x[0], denss_info))
         top_ratio_infos_sorted_by_dens = sorted(denss_info, key=lambda p: p[0])
+        infoids_sorted_by_dens = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
         cnt = len(denss)
 
         for i in range(int(cnt * ratio), cnt):
             cur_id = top_ratio_infos_sorted_by_dens[i][1]
             infoids.append(cur_id)
 
+        ratios = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]
+        ratios_map = chrs_per_donor_summary(infoids_sorted_by_dens, ratios)
+        text_ratios_map = ''
+        for k, v in ratios_map.items():
+            text_ratios_map += f'ratio={k} : ' + 'chr_per_donor=%0.2f\n' % v
+
         buckets_cnt = 100
         dens_path = f'distribution/densities/{f_id}.png'
         if dens_plot:
-            plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt)
+            plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt, text=text_ratios_map)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
         if cluster_plot:
@@ -213,6 +220,18 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
     print(f'plots took {t2 - t1} sec')
     return infoids
 
+
+def chrs_per_donor_summary(infoids_sorted_by_dens, ratios):
+    cnt = len(infoids_sorted_by_dens)
+    ratios_map = {}
+    for _ratio in ratios:
+        _ratio_infoids = []
+        for i in range(int(cnt * _ratio), cnt):
+            cur_id = infoids_sorted_by_dens[i]
+            _ratio_infoids.append(cur_id)
+        chr_per_donor = relation_chromo_chrs_per_donor(_ratio_infoids)
+        ratios_map[_ratio] = chr_per_donor
+    return ratios_map
 
 def relation_chromo_chrs_per_donor(chromo_infoids):
     donor_chromo_chrs_cnt = {}
@@ -329,8 +348,9 @@ def all_hists(ratio):
     for i in range(1, 4):
         # for i in range(1, max_range_pow + 1):
         infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False, cluster_plot=False)
-        avg = relation_chromo_chrs_per_donor(infoids)
-        print(f'chromo chr per 1 donor = {avg} with f_id = {i}')
+        # if infoids:
+        #     avg = relation_chromo_chrs_per_donor(infoids)
+        #     print(f'chromo chr per 1 donor = {avg} with f_id = {i}')
 
 
 def seek_test():
@@ -381,7 +401,7 @@ def measure_test():
 if __name__ == '__main__':
     # main()
 
-    all_hists(0.9965)  # 0.9965: -1,  0.975: -2
+    all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
 
     # seek_test()
 

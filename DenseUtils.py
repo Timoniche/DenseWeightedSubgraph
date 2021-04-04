@@ -90,12 +90,14 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
         plt.bar(ids, data[j], color=colors[j], label=labels[j], align='center', bottom=bottom[j - 1])
     plt.legend()
     plt.title(title)
+    plt.xlabel('buckets')
+    plt.ylabel('count in bucket')
     create_path_if_not_exist(store_path)
     plt.savefig(store_path)
     plt.show()
 
 
-def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buckets_cnt, color='null'):
+def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buckets_cnt, text=None, color='null'):
     rcParams.update({'figure.autolayout': True})
     if color != 'null':
         cnts_in_bucket, bins, patches = plt.hist(arr, bins=buckets_cnt, color=color)
@@ -116,6 +118,8 @@ def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buck
     create_path_if_not_exist(store_path)
     plt.xlabel(xlabel)
     plt.ylabel('bucket count')
+    if text is not None:
+        plt.text(int(0.5 * max(arr)), int(0.5 * cnts_in_bucket[0]), text, fontsize=10)
     plt.savefig(store_path)
     plt.show()
 
