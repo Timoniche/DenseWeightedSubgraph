@@ -50,6 +50,17 @@ class DonorRepository:
             donors.append(row[0])
         return donors
 
+    def get_pcawg(self):
+        donors = self.unique_prostate_donors()
+        donors = set(donors)
+        donor_chr_pairs = set()
+        for donor in donors:
+            self.cur.execute(f'SELECT chr FROM sv_intra WHERE donor_id = \'{donor}\'')
+            rows = self.cur.fetchall()
+            for row in rows:
+                donor_chr_pairs.add((donor, row[0]))
+        return donors, donor_chr_pairs
+
     def get_info_id(self, donor, chr_n, f_id):
         self.cur.execute(
             ' SELECT info_id FROM donorinfo ' +
@@ -122,8 +133,20 @@ class DonorRepository:
         rows = self.cur.fetchall()
         return rows
 
+    def get_seek(self):
+        regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
+        self.cur.execute(
+            ' SELECT ' +
+            '   donor_unique_id, ' +
+            '   "Chr", ' +
+            '   chromo_label ' +
+            '  FROM chromo ' +
+            f'  WHERE "Chr" SIMILAR TO \'{regex_up_to_21}\''
+        )
+        row = self.cur.fetchall()
+        return row
+
     # -1 not found
-    # -2 not chromo
     def get_chromo(self, donor, chr):
         self.cur.execute(
             ' SELECT ' +
@@ -139,8 +162,6 @@ class DonorRepository:
         row = self.cur.fetchone()
         if not row:
             return -1, -1, -1, -1, -1
-        if not row[3]:
-            return -2, -2, -2, -2, -2
         return row
 
     def insert_cluster(self, info_id, cluster: tuple):

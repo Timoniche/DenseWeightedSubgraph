@@ -217,7 +217,7 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
                                   f'seek distribution\n{code}')
 
     t2 = time.time()
-    print(f'plots took {t2 - t1} sec')
+    # print(f'plots took {t2 - t1} sec')
     return infoids
 
 
@@ -232,6 +232,7 @@ def chrs_per_donor_summary(infoids_sorted_by_dens, ratios):
         chr_per_donor = relation_chromo_chrs_per_donor(_ratio_infoids)
         ratios_map[_ratio] = chr_per_donor
     return ratios_map
+
 
 def relation_chromo_chrs_per_donor(chromo_infoids):
     donor_chromo_chrs_cnt = {}
@@ -289,8 +290,10 @@ def measure_chromos(chromo_clusters):
     cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
     resolution = cool.info['bin-size']
     accs = []
+    recalls = []
     chromo_cnt = 0
     all_cnt = 0
+    labels = set()
     with DonorRepository() as rep:
         for donor, chr, cluster in chromo_clusters:
             all_cnt += 1
@@ -306,15 +309,10 @@ def measure_chromos(chromo_clusters):
 
             seek_donor, seek_chr, seek_low, seek_up, label = rep.get_chromo(donor, chr)
 
-            if seek_low == -2 or label != 'High confidence':
-                print('No high confidence chromo')
+            # if label != 'High confidence' and label != 'Linked to high confidence':
+            if label != 'High confidence':
+                # print('No high confidence chromo')
                 continue
-
-            if seek_low == -1:
-                all_cnt -= 1
-                print('No Data')
-                continue
-
             seek_low, seek_up = bps_to_bins_with_resolution(seek_low, seek_up, resolution)
 
             chromo_cnt += 1
@@ -336,18 +334,25 @@ def measure_chromos(chromo_clusters):
 
             TP, FP, TN, FN = perf_measure(seek_vector, own_vector)
             acc = (TP + TN) / (TP + TN + FP + FN)
+            recall = TP / (TP + FN)
             accs.append(acc)
-            print(acc)
+            recalls.append(recall)
+            # print(acc)
+
     mean_chromo_acc = np.mean(np.array(accs))
+    mean_chromo_recall = np.mean(np.array(recalls))
     print(f'mean chromo acc: {mean_chromo_acc * 100}%')
+    print(f'mean chromo recall: {mean_chromo_recall * 100}%')
     chromo_marker_acc = chromo_cnt / all_cnt
     print(f'marker acc: {chromo_marker_acc * 100}%')
+    return mean_chromo_acc, mean_chromo_recall, chromo_marker_acc
 
 
 def all_hists(ratio):
     for i in range(1, 4):
         # for i in range(1, max_range_pow + 1):
-        infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False, cluster_plot=False)
+        infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False,
+                                cluster_plot=False)
         # if infoids:
         #     avg = relation_chromo_chrs_per_donor(infoids)
         #     print(f'chromo chr per 1 donor = {avg} with f_id = {i}')
@@ -389,20 +394,91 @@ def seek_test():
     print(f'all_patients={all_patients}, ok_cnt={ok_cnt}')
 
 
+def shatter_seek_compare():
+    with DonorRepository() as rep:
+        seek_donors = set()
+        seek_chr_pairs = set()
+        seek_chromo_donors = set()
+        seek_chromo_donor_chr_pairs = set()
+
+        rows = rep.get_seek()
+        for _donor_seek, chr_seek, label in rows:
+            delim = '::'
+            seek_donor = _donor_seek[_donor_seek.index(delim) + len(delim):]
+            seek_donors.add(seek_donor)
+            seek_chr_pairs.add((seek_donor, chr_seek))
+            if label == 'High confidence':
+                seek_chromo_donors.add(seek_donor)
+                seek_chromo_donor_chr_pairs.add((seek_donor, chr_seek))
+
+        pcawg_donors, pcawg_pairs = rep.get_pcawg()
+
+        COMMON_DONORS = seek_donors.intersection(pcawg_donors)
+        COMMON_DONOR_CHR_PAIRS = seek_chr_pairs.intersection(pcawg_pairs)
+
+
+        for i in range(1, 4):
+            print(f'f_id = {i}')
+            for ratio in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]:
+                infoids = hist_patients(i, ratio=ratio, dens_plot=False, seek_plot=False, periphery_plot=False,
+                                        cluster_plot=False)
+                chromo_donors = set()
+                chromo_donor_chr_pairs = set()
+                for infoid in infoids:
+                    donor, chr, f_id = rep.get_by_infoid(infoid)
+                    chromo_donors.add(donor)
+                    chromo_donor_chr_pairs.add((donor, chr))
+
+                seek_v = []
+                own_v = []
+
+                # for d in COMMON_DONORS:
+                #     if d in seek_chromo_donors:
+                #         seek_v.append(1)
+                #     else:
+                #         seek_v.append(0)
+                #
+                #     if d in chromo_donors:
+                #         own_v.append(1)
+                #     else:
+                #         own_v.append(0)
+
+                for p in COMMON_DONOR_CHR_PAIRS:
+                    if p in seek_chromo_donor_chr_pairs:
+                        seek_v.append(1)
+                    else:
+                        seek_v.append(0)
+
+                    if p in chromo_donor_chr_pairs:
+                        own_v.append(1)
+                    else:
+                        own_v.append(0)
+
+                TP, FP, TN, FN = perf_measure(seek_v, own_v)
+                acc = (TP + TN) / (TP + TN + FP + FN)
+                recall = TP / (TP + FN)
+                print(f'  percentile_healthy_threshold={ratio}, acc={acc}, recall={recall}')
+
+
+
 def measure_test():
-    i = 3
-    infoids = hist_patients(i, ratio=0.8)
-    # chromos = find_chromos(infoids)
-    chromo_clusters = find_cromo_clusters(infoids)
-    measure_chromos(chromo_clusters)
-    # compare_chromos
+    #i = 3
+    for i in range(1, 4):
+        print(f'f_id={i}')
+        for ratio in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]:
+            infoids = hist_patients(i, ratio=ratio, dens_plot=False, cluster_plot=False, periphery_plot=False, seek_plot=False)
+            chromo_clusters = find_cromo_clusters(infoids)
+            acc, recall, chromo_donorchr_pairs = measure_chromos(chromo_clusters)
+            print(f'ratio={ratio}, acc={acc}, recall={recall}, chromo_donorchr_pairs={chromo_donorchr_pairs}')
 
 
 if __name__ == '__main__':
     # main()
 
-    all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
+    # all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
 
     # seek_test()
 
     # measure_test()
+
+    shatter_seek_compare()
