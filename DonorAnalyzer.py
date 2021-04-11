@@ -409,12 +409,13 @@ def shatter_seek_compare():
             seek_chr_pairs.add((seek_donor, chr_seek))
             if label == 'High confidence':
                 seek_chromo_donors.add(seek_donor)
-                seek_chromo_donor_chr_pairs.add((seek_donor, chr_seek))
+                seek_chromo_donor_chr_pairs.add((seek_donor, int(chr_seek)))
 
         pcawg_donors, pcawg_pairs = rep.get_pcawg()
 
+        print(f'SHATTER SEEK CHROMO: {len(seek_chromo_donors) / len(seek_donors)}')
         COMMON_DONORS = seek_donors.intersection(pcawg_donors)
-        COMMON_DONOR_CHR_PAIRS = seek_chr_pairs.intersection(pcawg_pairs)
+        COMMON_DONOR_CHR_PAIRS = list(map(lambda e: (e[0], int(e[1])), seek_chr_pairs.intersection(pcawg_pairs)))
 
 
         for i in range(1, 4):
@@ -427,7 +428,7 @@ def shatter_seek_compare():
                 for infoid in infoids:
                     donor, chr, f_id = rep.get_by_infoid(infoid)
                     chromo_donors.add(donor)
-                    chromo_donor_chr_pairs.add((donor, chr))
+                    chromo_donor_chr_pairs.add((donor, int(chr)))
 
                 seek_v = []
                 own_v = []
@@ -457,7 +458,8 @@ def shatter_seek_compare():
                 TP, FP, TN, FN = perf_measure(seek_v, own_v)
                 acc = (TP + TN) / (TP + TN + FP + FN)
                 recall = TP / (TP + FN)
-                print(f'  percentile_healthy_threshold={ratio}, acc={acc}, recall={recall}')
+                precision = TP / (TP + FP)
+                print(f'  percentile_healthy_threshold={ratio}, acc={acc}, recall={recall} precision={precision}')
 
 
 
