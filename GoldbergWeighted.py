@@ -7,6 +7,8 @@ import maxflow
 
 def WFind_Density(answer, filepath):
     ''' Finds the density of the returned subgraph.'''
+    if not answer:
+        return 0
     degree = 0
     file = open(filepath, "r")
     while True:
@@ -42,6 +44,8 @@ def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath):
     max_degree = sum_w
 
     subgraph = []
+    if sum_w == 0:
+        return subgraph
     difference = (1.0 / (number_of_nodes * (number_of_nodes + 1))) * (sum_w / sum_)
     # print difference, " diff"
     while (max_degree - min_degree >= difference):

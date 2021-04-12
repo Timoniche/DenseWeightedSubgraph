@@ -21,7 +21,7 @@ script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot):
+def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot, from_hic=False, oe=False):
     print(donor)
     svs = rep.get_donor_sv_chr_1_21(donor)
 
@@ -32,12 +32,23 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
     # bin_pairs = chr_bins_map['17']
     for (chr_n, bin_pairs) in chr_bins_map.items():
         # for i in range(1):
-        rep.insert_donorinfo(donor, chr_n, f_id)
 
         all_bins = set()
         number_of_edges = 0
         number_of_nodes = -1
-        dist_mat = np.load(f'dists/dists_npy_chr{chr_n}.npy')
+
+        mat = cooler.matrix(balance=False).fetch(f'chr{chr_n}')
+
+        if not from_hic:
+            dist_mat = np.load(f'dists/dists_npy_chr{chr_n}.npy')
+        else:
+            if not oe:
+                dist_mat = mat
+            else:
+                mat_nan = zeros_to_nan(mat) # better to precount it for every chr
+                mat_norm = normalize_intra(mat_nan)
+                dist_mat = mat_norm
+
         for (x, y) in bin_pairs:
             all_bins.add(x)
             all_bins.add(y)
@@ -48,10 +59,6 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
 
         filepath = donorspath + f'/{donor}/{chr_n}'
 
-        mat = cooler.matrix(balance=False).fetch(f'chr{chr_n}')
-        # mat_nan = zeros_to_nan(mat) # better to precount it for every chr
-        # mat_norm = normalize_intra(mat_nan)
-
         with open(filepath, 'w') as outfile:
             for i_idx in range(len(all_bins)):
                 for j_idx in range(i_idx + 1, len(all_bins)):
@@ -60,6 +67,8 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
                     number_of_nodes = max(number_of_nodes, max(i, j))
                     dist = dist_mat[i][j]
                     close_f = f_proximity(dist)
+                    if close_f == 0:
+                        continue
                     number_of_edges += 1
                     outfile.write(f'{i} {j} {close_f}\n')
 
@@ -68,13 +77,15 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
 
         some_delta_just_for_sure = 5
         cluster_bins = WFind_Densest_Subgraph(number_of_nodes + some_delta_just_for_sure, number_of_edges, filepath)
-        assert cluster_bins != [], 'not enough accuracy in find densest subgraph algorithm'
+        # assert cluster_bins != [], 'not enough accuracy in find densest subgraph algorithm'
+        print('ZERO CLUSTER')
         if hic_plot:
             heatmap_with_breakpoints_and_cluster(mat,
                                                  f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
                                                  bin_pairs,
                                                  cluster_bins,
                                                  save_path=donorspath + f'/{donor}/{chr_n}.png')
+        rep.insert_donorinfo(donor, chr_n, f_id)
         dens = WFind_Density(cluster_bins, filepath)
         print(dens)
         print(f'clusters {cluster_bins}')
@@ -349,7 +360,9 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    for i in range(1, 4):
+    iss = [1, 2, 11, 3]
+    #for i in range(1, 4):
+    for i in iss:
         # for i in range(1, max_range_pow + 1):
         infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False,
                                 cluster_plot=False)
@@ -474,13 +487,44 @@ def measure_test():
             print(f'ratio={ratio}, acc={acc}, recall={recall}, chromo_donorchr_pairs={chromo_donorchr_pairs}')
 
 
+def identity_hic_oe(x):
+    return x
+
+
+def identity_hic(x):
+    return x
+
+
+def hic_oe_analyzer(oe=False):
+    t1 = time.time()
+
+    cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    with DonorRepository() as rep:
+        if oe:
+            f = identity_hic_oe
+        else:
+            f = identity_hic
+
+        rep.ddl()
+        rep.insert_proximity(f)
+        f_id = rep.get_proximity_id(inspect.getsource(f))
+        donors = rep.unique_prostate_donors()
+        for donor in donors:
+            analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=f, rep=rep,
+                          hic_plot=False, from_hic=True, oe=oe)
+    t2 = time.time()
+    print(f'filling hic oe db took {t2 - t1} sec')
+
+
 if __name__ == '__main__':
     # main()
 
-    # all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
+    all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
 
     # seek_test()
 
     # measure_test()
 
-    shatter_seek_compare()
+    # shatter_seek_compare()
+
+    # hic_oe_analyzer(oe=False)

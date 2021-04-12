@@ -108,6 +108,13 @@ class DonorRepository:
         row = self.cur.fetchone()
         return row[0]
 
+    def get_proximity_id(self, function_code):
+        self.cur.execute(
+            f'SELECT function_id FROM proximity WHERE function_code = \'{function_code}\''
+        )
+        row = self.cur.fetchone()
+        return row[0]
+
     def get_by_infoid(self, info_id):
         self.cur.execute(
             ' SELECT donor_id, chr, function_id FROM donorinfo ' +
