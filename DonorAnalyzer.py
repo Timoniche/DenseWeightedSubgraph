@@ -13,7 +13,7 @@ from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
 
-# from HiCUtils import zeros_to_nan, normalize_intra
+from HiCUtils import zeros_to_nan, normalize_intra
 from functions import functions
 from generate_functions import generate_functions, max_range_pow
 
@@ -28,10 +28,7 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
     resolution = cooler.info['bin-size']
     chr_bins_map = collect_chr_bins_map_with_resolution(svs, resolution)
 
-    # chr_n = 17
-    # bin_pairs = chr_bins_map['17']
     for (chr_n, bin_pairs) in chr_bins_map.items():
-        # for i in range(1):
 
         all_bins = set()
         number_of_edges = 0
@@ -66,11 +63,12 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
                     j = all_bins[j_idx]
                     number_of_nodes = max(number_of_nodes, max(i, j))
                     dist = dist_mat[i][j]
-                    close_f = f_proximity(dist)
-                    if close_f == 0:
-                        continue
-                    number_of_edges += 1
-                    outfile.write(f'{i} {j} {close_f}\n')
+                    if dist != np.nan:
+                        close_f = f_proximity(dist)
+                        if close_f == 0:
+                            continue
+                        number_of_edges += 1
+                        outfile.write(f'{i} {j} {close_f}\n')
 
         if number_of_edges == 0:
             continue
@@ -360,7 +358,7 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [1, 2, 11, 3]
+    iss = [1, 2, 11, 12, 3]
     #for i in range(1, 4):
     for i in iss:
         # for i in range(1, max_range_pow + 1):
@@ -527,4 +525,4 @@ if __name__ == '__main__':
 
     # shatter_seek_compare()
 
-    # hic_oe_analyzer(oe=False)
+    # hic_oe_analyzer(oe=True)
