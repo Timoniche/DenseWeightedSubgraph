@@ -6,7 +6,7 @@ import numpy as np
 import os
 import sys
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
-    plot_seek_distibution
+    plot_seek_distibution, plot_seek_compare
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
@@ -42,7 +42,7 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
             if not oe:
                 dist_mat = mat
             else:
-                mat_nan = zeros_to_nan(mat) # better to precount it for every chr
+                mat_nan = zeros_to_nan(mat)  # better to precount it for every chr
                 mat_norm = normalize_intra(mat_nan)
                 dist_mat = mat_norm
 
@@ -359,7 +359,7 @@ def measure_chromos(chromo_clusters):
 
 def all_hists(ratio):
     iss = [1, 2, 11, 12, 3]
-    #for i in range(1, 4):
+    # for i in range(1, 4):
     for i in iss:
         # for i in range(1, max_range_pow + 1):
         infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False,
@@ -405,7 +405,7 @@ def seek_test():
     print(f'all_patients={all_patients}, ok_cnt={ok_cnt}')
 
 
-def shatter_seek_compare():
+def shatter_seek_compare(analyze_donor_chr_pairs=False):
     with DonorRepository() as rep:
         seek_donors = set()
         seek_chr_pairs = set()
@@ -428,10 +428,15 @@ def shatter_seek_compare():
         COMMON_DONORS = seek_donors.intersection(pcawg_donors)
         COMMON_DONOR_CHR_PAIRS = list(map(lambda e: (e[0], int(e[1])), seek_chr_pairs.intersection(pcawg_pairs)))
 
-
-        for i in range(1, 4):
+        iss = [11, 12, 1, 2, 3]
+        ratios = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
+        print(f'mode donor chr pairs={analyze_donor_chr_pairs}')
+        for i in iss:
             print(f'f_id = {i}')
-            for ratio in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]:
+            accs = []
+            recalls = []
+            precisions = []
+            for ratio in ratios:
                 infoids = hist_patients(i, ratio=ratio, dens_plot=False, seek_plot=False, periphery_plot=False,
                                         cluster_plot=False)
                 chromo_donors = set()
@@ -444,42 +449,54 @@ def shatter_seek_compare():
                 seek_v = []
                 own_v = []
 
-                # for d in COMMON_DONORS:
-                #     if d in seek_chromo_donors:
-                #         seek_v.append(1)
-                #     else:
-                #         seek_v.append(0)
-                #
-                #     if d in chromo_donors:
-                #         own_v.append(1)
-                #     else:
-                #         own_v.append(0)
+                if analyze_donor_chr_pairs:
+                    for p in COMMON_DONOR_CHR_PAIRS:
+                        if p in seek_chromo_donor_chr_pairs:
+                            seek_v.append(1)
+                        else:
+                            seek_v.append(0)
 
-                for p in COMMON_DONOR_CHR_PAIRS:
-                    if p in seek_chromo_donor_chr_pairs:
-                        seek_v.append(1)
-                    else:
-                        seek_v.append(0)
+                        if p in chromo_donor_chr_pairs:
+                            own_v.append(1)
+                        else:
+                            own_v.append(0)
+                else:
+                    for d in COMMON_DONORS:
+                        if d in seek_chromo_donors:
+                            seek_v.append(1)
+                        else:
+                            seek_v.append(0)
 
-                    if p in chromo_donor_chr_pairs:
-                        own_v.append(1)
-                    else:
-                        own_v.append(0)
+                        if d in chromo_donors:
+                            own_v.append(1)
+                        else:
+                            own_v.append(0)
 
                 TP, FP, TN, FN = perf_measure(seek_v, own_v)
                 acc = (TP + TN) / (TP + TN + FP + FN)
                 recall = TP / (TP + FN)
                 precision = TP / (TP + FP)
+                accs.append(acc)
+                recalls.append(recall)
+                precisions.append(precision)
                 print(f'  percentile_healthy_threshold={ratio}, acc={acc}, recall={recall} precision={precision}')
-
+            f_source = rep.get_proximity_code(i)
+            if analyze_donor_chr_pairs:
+                save_path = f'seek_compare/by_donor_chr_pairs/{i}.png'
+                title = f'seek compare donor-chr pairs\n{f_source}'
+            else:
+                save_path = f'seek_compare/by_donors/{i}.png'
+                title = f'seek compare only donors\n{f_source}'
+            plot_seek_compare(accs, recalls, precisions, ratios, title=title, save_path=save_path)
 
 
 def measure_test():
-    #i = 3
+    # i = 3
     for i in range(1, 4):
         print(f'f_id={i}')
         for ratio in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]:
-            infoids = hist_patients(i, ratio=ratio, dens_plot=False, cluster_plot=False, periphery_plot=False, seek_plot=False)
+            infoids = hist_patients(i, ratio=ratio, dens_plot=False, cluster_plot=False, periphery_plot=False,
+                                    seek_plot=False)
             chromo_clusters = find_cromo_clusters(infoids)
             acc, recall, chromo_donorchr_pairs = measure_chromos(chromo_clusters)
             print(f'ratio={ratio}, acc={acc}, recall={recall}, chromo_donorchr_pairs={chromo_donorchr_pairs}')
@@ -517,12 +534,14 @@ def hic_oe_analyzer(oe=False):
 if __name__ == '__main__':
     # main()
 
-    all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
+    # all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
 
     # seek_test()
 
     # measure_test()
 
-    # shatter_seek_compare()
+    shatter_seek_compare(analyze_donor_chr_pairs=False)
+    shatter_seek_compare(analyze_donor_chr_pairs=True)
+
 
     # hic_oe_analyzer(oe=True)

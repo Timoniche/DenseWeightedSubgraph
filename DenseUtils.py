@@ -168,6 +168,19 @@ def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, clus
     plt.show()
 
 
+def plot_seek_compare(accs, recalls, precisions, ratios, title, save_path):
+    rcParams.update({'figure.autolayout': True})
+    plt.title(title)
+    plt.xlabel('percentile healthy')
+    plt.plot(ratios, accs, label='acc')
+    plt.plot(ratios, recalls, label='recall')
+    plt.plot(ratios, precisions, label='precision')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    create_path_if_not_exist(save_path)
+    plt.savefig(save_path)
+    plt.show()
+
+
 def perf_measure(y_actual, y_hat):
     TP = 0
     FP = 0
