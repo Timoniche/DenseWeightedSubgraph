@@ -172,7 +172,7 @@ def main():
         donors = rep.unique_prostate_donors()
         # donors = ['A31-0018_CRUK_PC_0018']
         # f_ids = [i for i in range(1, max_range_pow + 1)] todo: replace here
-        f_ids = [1]
+        f_ids = [3, 4]
 
 
         for f_id in f_ids:
@@ -603,7 +603,7 @@ if __name__ == '__main__':
     # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
 
-    # hic_oe_analyzer(oe=False)
-    corr_test(1)
+    # hic_oe_analyzer(oe=True)
+    corr_test(4)
 
 
