@@ -1,4 +1,5 @@
 import inspect
+import math
 import time
 
 import cooler
@@ -27,6 +28,10 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
 
     resolution = cooler.info['bin-size']
     chr_bins_map = collect_chr_bins_map_with_resolution(svs, resolution)
+
+    corr_densities = []
+    corr_sv_cnt = []
+    corr_edges_cnt = []
 
     for (chr_n, bin_pairs) in chr_bins_map.items():
 
@@ -86,6 +91,11 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
         rep.insert_donorinfo(donor, chr_n, f_id)
         dens = WFind_Density(cluster_bins, filepath)
         print(dens)
+
+        corr_densities.append(dens)
+        corr_sv_cnt.append(len(bin_pairs))
+        corr_edges_cnt.append(number_of_edges)
+
         print(f'clusters {cluster_bins}')
         periphery = set()
         info_id = rep.get_info_id(donor, chr_n, f_id)
@@ -101,6 +111,8 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
         print(f'periphery: {periphery}')
         rep.insert_periphery(info_id, tuple(list(periphery)))
         print(f'all sv: {all_bins}')
+
+    return corr_densities, corr_sv_cnt, corr_edges_cnt
 
 
 def plot_donor_info(donor, f_id, rep: DonorRepository):
@@ -159,13 +171,27 @@ def main():
 
         donors = rep.unique_prostate_donors()
         # donors = ['A31-0018_CRUK_PC_0018']
-        f_ids = [i for i in range(1, max_range_pow + 1)]
-        # f_ids = [9]
-        for donor in donors:
-            for f_id in f_ids:
-                analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep,
+        # f_ids = [i for i in range(1, max_range_pow + 1)] todo: replace here
+        f_ids = [1]
+
+
+        for f_id in f_ids:
+            densess = []
+            svscnt = []
+            edgescnt = []
+            corr_path = f'distribution/corr/{f_id}/corr_arrays.npy'
+            create_path_if_not_exist(corr_path)
+            for donor in donors:
+                corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep,
                               hic_plot=False)
-                print(f'f_id={f_id} filled')
+                densess.extend(corr_densities)
+                svscnt.extend(corr_sv_cnt)
+                edgescnt.extend(corr_edges_cnt)
+            print(f'f_id={f_id} filled')
+            with open(corr_path, 'wb') as fl:
+                np.save(fl, np.array(densess))
+                np.save(fl, np.array(svscnt))
+                np.save(fl, np.array(edgescnt))
 
     t2 = time.time()
     print(f'filling db took {t2 - t1} sec')
@@ -524,11 +550,44 @@ def hic_oe_analyzer(oe=False):
         rep.insert_proximity(f)
         f_id = rep.get_proximity_id(inspect.getsource(f))
         donors = rep.unique_prostate_donors()
+
+        corr_path = f'distribution/corr/{f_id}/corr_arrays.npy'
+        create_path_if_not_exist(corr_path)
+
+        densess = []
+        svscnt = []
+        edgescnt = []
         for donor in donors:
-            analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=f, rep=rep,
+            corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=f, rep=rep,
                           hic_plot=False, from_hic=True, oe=oe)
+            densess.extend(corr_densities)
+            svscnt.extend(corr_sv_cnt)
+            edgescnt.extend(corr_edges_cnt)
+
+        with open(corr_path, 'wb') as fl:
+            np.save(fl, np.array(densess))
+            np.save(fl, np.array(svscnt))
+            np.save(fl, np.array(edgescnt))
+
     t2 = time.time()
     print(f'filling hic oe db took {t2 - t1} sec')
+
+
+# Pre: analyze donors & collect data before
+def corr_test(f_id):
+    corr_path = f'distribution/corr/{f_id}/corr_arrays.npy'
+    with open(corr_path, 'rb') as fl:
+        denss = np.load(fl)
+        svs = np.load(fl)
+        edgess = np.load(fl)
+    print(denss)
+    print(svs)
+    print(edgess)
+    print(len(denss), len(svs), len(edgess))
+    print(np.corrcoef(denss, svs)[0, 1])
+    print(np.corrcoef(denss, edgess)[0, 1])
+    print(np.corrcoef(denss, list(map(math.sqrt, edgess)))[0, 1])
+
 
 
 if __name__ == '__main__':
@@ -540,8 +599,11 @@ if __name__ == '__main__':
 
     # measure_test()
 
-    shatter_seek_compare(analyze_donor_chr_pairs=False)
-    shatter_seek_compare(analyze_donor_chr_pairs=True)
+    # shatter_seek_compare(analyze_donor_chr_pairs=False)
+    # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
 
-    # hic_oe_analyzer(oe=True)
+    # hic_oe_analyzer(oe=False)
+    corr_test(1)
+
+
