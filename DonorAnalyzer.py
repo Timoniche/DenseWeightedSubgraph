@@ -589,6 +589,36 @@ def corr_test(f_id):
     print(np.corrcoef(denss, list(map(math.sqrt, edgess)))[0, 1])
 
 
+def cluster_sustainability_percentile_test():
+    t1 = time.time()
+    fid_cluster_map = {}
+    ratio_healthy = 0.8
+    adj = np.zeros((13, 13))
+    with DonorRepository() as rep:
+        for f_id in range(1, 13):
+            infoids = hist_patients(f_id, ratio=ratio_healthy, dens_plot=False, cluster_plot=False, periphery_plot=False,
+                                    seek_plot=False)
+            for info_id in infoids:
+                cluster_set = set(rep.get_cluster(info_id))
+                cur_set: set = fid_cluster_map.get(f_id, set())
+                fid_cluster_map[f_id] = cur_set.union(cluster_set)
+    for i in range(1, 13):
+        for j in range(i, 13):
+            adj[i][j] = len(fid_cluster_map[i].intersection(fid_cluster_map[j]))
+
+    print(adj)
+
+    plt.title(f'percentile healthy = {ratio_healthy}')
+    plt.imshow(adj, interpolation='none')
+
+    for (j, i), label in np.ndenumerate(adj):
+        plt.text(i, j, int(label), ha='center', va='center')
+
+    plt.show()
+
+    t2 = time.time()
+    print(f'sustainability test took {t2 - t1} sec')
+
 
 if __name__ == '__main__':
     # main()
@@ -604,6 +634,7 @@ if __name__ == '__main__':
 
 
     # hic_oe_analyzer(oe=True)
-    corr_test(4)
+    #corr_test(4)
+    cluster_sustainability_percentile_test()
 
 
