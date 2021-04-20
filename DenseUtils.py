@@ -178,6 +178,7 @@ def plot_seek_compare(accs, recalls, precisions, ratios, title, save_path):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     create_path_if_not_exist(save_path)
     plt.savefig(save_path)
+    plt.grid()
     plt.show()
 
 

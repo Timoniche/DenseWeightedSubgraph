@@ -629,12 +629,12 @@ if __name__ == '__main__':
 
     # measure_test()
 
-    # shatter_seek_compare(analyze_donor_chr_pairs=False)
+    shatter_seek_compare(analyze_donor_chr_pairs=False)
     # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
 
     # hic_oe_analyzer(oe=True)
     #corr_test(4)
-    cluster_sustainability_percentile_test()
+    # cluster_sustainability_percentile_test()
 
 
