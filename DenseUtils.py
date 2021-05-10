@@ -119,7 +119,8 @@ def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buck
     plt.xlabel(xlabel)
     plt.ylabel('bucket count')
     if text is not None:
-        plt.text(int(0.5 * max(arr)), int(0.5 * cnts_in_bucket[0]), text, fontsize=10)
+        t = plt.text(int(0.5 * max(arr)), int(0.5 * cnts_in_bucket[0]), text, fontsize=10)
+        t.set_bbox(dict(facecolor='green', alpha=0.5))
     plt.savefig(store_path)
     plt.show()
 

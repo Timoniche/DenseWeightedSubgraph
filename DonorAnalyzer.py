@@ -6,6 +6,9 @@ import cooler
 import numpy as np
 import os
 import sys
+
+from matplotlib import rcParams
+
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
     plot_seek_distibution, plot_seek_compare
 from DonorRepository import DonorRepository
@@ -16,14 +19,15 @@ import matplotlib.pyplot as plt
 
 from HiCUtils import zeros_to_nan, normalize_intra
 from functions import functions
-from generate_functions import generate_functions
+from generate_functions import generate_functions, max_range_pow
 from tqdm import tqdm
 
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot, from_hic=False, oe=False, in_bp=False):
+def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot, from_hic=False, oe=False,
+                  in_bp=False):
     print(donor)
     svs = rep.get_donor_sv_chr_1_21(donor)
 
@@ -207,10 +211,7 @@ def main():
             rep.insert_proximity(f)
 
         donors = rep.unique_prostate_donors()
-        # donors = ['A31-0018_CRUK_PC_0018']
-        # f_ids = [i for i in range(1, max_range_pow + 1)] todo: replace here
-        f_ids = [3, 4]
-
+        f_ids = [i for i in range(1, max_range_pow + 1)]
 
         for f_id in f_ids:
             densess = []
@@ -218,9 +219,10 @@ def main():
             edgescnt = []
             corr_path = f'distribution/corr/{f_id}/corr_arrays.npy'
             create_path_if_not_exist(corr_path)
-            for donor in donors:
-                corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep,
-                              hic_plot=False, in_bp=True)
+            for donor in tqdm(donors):
+                corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id,
+                                                                            f_proximity=functions[f_id - 1], rep=rep,
+                                                                            hic_plot=False, in_bp=True)
                 densess.extend(corr_densities)
                 svscnt.extend(corr_sv_cnt)
                 edgescnt.extend(corr_edges_cnt)
@@ -276,12 +278,13 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
 
         cluster_path = f'distribution/clusters/{f_id}.png'
         if cluster_plot:
-            plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, buckets_cnt, 'green')
+            plot_distribution(clusters, cluster_path, code, 'clusters', 'cluster_size', ratio, buckets_cnt,
+                              color='green')
 
         periphery_path = f'distribution/peripheries/{f_id}.png'
         if periphery_plot:
             plot_distribution(peripheries, periphery_path, code, 'peripheries', 'periphery_size', ratio, buckets_cnt,
-                              'orange')
+                              color='orange')
 
         seek_path = f'distribution/seek/{f_id}.png'
         if seek_plot:
@@ -381,9 +384,7 @@ def measure_chromos(chromo_clusters):
 
             seek_donor, seek_chr, seek_low, seek_up, label = rep.get_chromo(donor, chr)
 
-            # if label != 'High confidence' and label != 'Linked to high confidence':
             if label != 'High confidence':
-                # print('No high confidence chromo')
                 continue
             seek_low, seek_up = bps_to_bins_with_resolution(seek_low, seek_up, resolution)
 
@@ -425,8 +426,8 @@ def all_hists(ratio):
     # for i in range(1, 4):
     for i in iss:
         # for i in range(1, max_range_pow + 1):
-        infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=False,
-                                cluster_plot=False)
+        infoids = hist_patients(i, ratio=ratio, dens_plot=True, seek_plot=True, periphery_plot=True,
+                                cluster_plot=True)
         # if infoids:
         #     avg = relation_chromo_chrs_per_donor(infoids)
         #     print(f'chromo chr per 1 donor = {avg} with f_id = {i}')
@@ -595,8 +596,10 @@ def hic_oe_analyzer(oe=False):
         svscnt = []
         edgescnt = []
         for donor in tqdm(donors):
-            corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=f, rep=rep,
-                          hic_plot=False, from_hic=True, oe=oe, in_bp=True)
+            corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id,
+                                                                        f_proximity=f, rep=rep,
+                                                                        hic_plot=False, from_hic=True, oe=oe,
+                                                                        in_bp=True)
             densess.extend(corr_densities)
             svscnt.extend(corr_sv_cnt)
             edgescnt.extend(corr_edges_cnt)
@@ -630,27 +633,39 @@ def cluster_sustainability_percentile_test():
     t1 = time.time()
     fid_cluster_map = {}
     ratio_healthy = 0.8
-    adj = np.zeros((13, 13))
+    functions_cnt = 12
+    adj = np.zeros((functions_cnt, functions_cnt))
     with DonorRepository() as rep:
-        for f_id in range(1, 13):
-            infoids = hist_patients(f_id, ratio=ratio_healthy, dens_plot=False, cluster_plot=False, periphery_plot=False,
+        for f_id in range(1, functions_cnt + 1):
+            infoids = hist_patients(f_id, ratio=ratio_healthy, dens_plot=False, cluster_plot=False,
+                                    periphery_plot=False,
                                     seek_plot=False)
             for info_id in infoids:
                 cluster_set = set(rep.get_cluster(info_id))
-                cur_set: set = fid_cluster_map.get(f_id, set())
-                fid_cluster_map[f_id] = cur_set.union(cluster_set)
-    for i in range(1, 13):
-        for j in range(i, 13):
+                cur_set: set = fid_cluster_map.get(f_id - 1, set())
+                fid_cluster_map[f_id - 1] = cur_set.union(cluster_set)
+    for i in range(functions_cnt):
+        for j in range(i, functions_cnt):
             adj[i][j] = len(fid_cluster_map[i].intersection(fid_cluster_map[j]))
 
     print(adj)
 
-    plt.title(f'percentile healthy = {ratio_healthy}')
+    rcParams.update({'figure.autolayout': True})
+    plt.title(f'common cluster breakpoints\npercentile healthy = {ratio_healthy}')
     plt.imshow(adj, interpolation='none')
 
     for (j, i), label in np.ndenumerate(adj):
-        plt.text(i, j, int(label), ha='center', va='center')
+        plt.text(i, j, int(label), ha='center', va='center', fontsize=7)
 
+    ticks_simba = [f'pow={i}' for i in range(0, -10, -1)]
+    ticks_hic = (['pure Hi-C', 'o/e Hi-C'])
+    ticks = [*ticks_simba, *ticks_hic]
+    plt.xticks(np.arange(functions_cnt), ticks, rotation=90, fontsize=7)
+    plt.yticks(np.arange(functions_cnt), ticks, fontsize=7)
+
+    save_path = 'seek_compare/common_cluster_bps'
+    create_path_if_not_exist(save_path)
+    plt.savefig(save_path)
     plt.show()
 
     t2 = time.time()
@@ -658,6 +673,7 @@ def cluster_sustainability_percentile_test():
 
 
 if __name__ == '__main__':
+
     # main()
 
     # all_hists(ratio=0.7)
@@ -667,11 +683,11 @@ if __name__ == '__main__':
     # measure_test()
 
     # shatter_seek_compare(analyze_donor_chr_pairs=False)
+
     # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
-    hic_oe_analyzer(oe=False)
+    # hic_oe_analyzer(oe=True)
 
-    #corr_test(4)
-    # cluster_sustainability_percentile_test()
+    # corr_test(4)
 
-
+    cluster_sustainability_percentile_test()
