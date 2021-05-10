@@ -1,6 +1,7 @@
-# #####################################################
-#   Authors  #  Varun Gohil (gohil.varun@iitgn.ac.in) #
-#######################################################
+# #########################################################
+#   Authors  #  Varun Gohil (gohil.varun@iitgn.ac.in)     #
+#   edited   #  Dmitrii Dulaev (dmitriidulaev@gmail.com)  #
+###########################################################
 
 import maxflow
 

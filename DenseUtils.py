@@ -138,6 +138,7 @@ sv - neither i or j in chromothripsis (simple sv)
 
 
 def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, cluster, save_path):
+    rcParams.update({'figure.autolayout': True})
     plt.title(plot_title)
     plt.imshow(arr, cmap='hot', interpolation='nearest')
     labeled_sv = False

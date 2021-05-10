@@ -9,33 +9,38 @@ import sys
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
     plot_seek_distibution, plot_seek_compare
 from DonorRepository import DonorRepository
-from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution
+from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
 
 from HiCUtils import zeros_to_nan, normalize_intra
 from functions import functions
-from generate_functions import generate_functions, max_range_pow
+from generate_functions import generate_functions
+from tqdm import tqdm
 
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) or '.')
 donorspath = script_dir + '/donors'
 
 
-def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot, from_hic=False, oe=False):
+def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot, from_hic=False, oe=False, in_bp=False):
     print(donor)
     svs = rep.get_donor_sv_chr_1_21(donor)
 
     resolution = cooler.info['bin-size']
-    chr_bins_map = collect_chr_bins_map_with_resolution(svs, resolution)
+
+    if not in_bp:
+        chr_sv_map = collect_chr_bins_map_with_resolution(svs, resolution)
+    else:
+        chr_sv_map = filter_svs_with_resolution(svs, resolution)
 
     corr_densities = []
     corr_sv_cnt = []
     corr_edges_cnt = []
 
-    for (chr_n, bin_pairs) in chr_bins_map.items():
+    for (chr_n, coord_pairs) in chr_sv_map.items():
 
-        all_bins = set()
+        all_coords = set()
         number_of_edges = 0
         number_of_nodes = -1
 
@@ -51,10 +56,17 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
                 mat_norm = normalize_intra(mat_nan)
                 dist_mat = mat_norm
 
-        for (x, y) in bin_pairs:
-            all_bins.add(x)
-            all_bins.add(y)
-        all_bins = list(all_bins)
+        for (x, y) in coord_pairs:
+            all_coords.add(x)
+            all_coords.add(y)
+        all_coords = list(all_coords)
+
+        if not in_bp:
+            all_coords_bin = all_coords.copy()
+            coord_pairs_bin = coord_pairs.copy()
+        else:
+            all_coords_bin = list(set(map(lambda e: int(e / resolution), all_coords)))
+            coord_pairs_bin = list(set(map(lambda p: bps_to_bins_with_resolution(p[0], p[1], resolution), coord_pairs)))
 
         dirpath = donorspath + f'/{donor}/{chr_n}'
         create_path_if_not_exist(dirpath)
@@ -62,10 +74,10 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
         filepath = donorspath + f'/{donor}/{chr_n}'
 
         with open(filepath, 'w') as outfile:
-            for i_idx in range(len(all_bins)):
-                for j_idx in range(i_idx + 1, len(all_bins)):
-                    i = all_bins[i_idx]
-                    j = all_bins[j_idx]
+            for i_idx in range(len(all_coords_bin)):
+                for j_idx in range(i_idx + 1, len(all_coords_bin)):
+                    i = all_coords_bin[i_idx]
+                    j = all_coords_bin[j_idx]
                     number_of_nodes = max(number_of_nodes, max(i, j))
                     dist = dist_mat[i][j]
                     if dist != np.nan:
@@ -81,11 +93,12 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
         some_delta_just_for_sure = 5
         cluster_bins = WFind_Densest_Subgraph(number_of_nodes + some_delta_just_for_sure, number_of_edges, filepath)
         # assert cluster_bins != [], 'not enough accuracy in find densest subgraph algorithm'
-        print('ZERO CLUSTER')
+        if not cluster_bins:
+            print('ZERO CLUSTER')
         if hic_plot:
             heatmap_with_breakpoints_and_cluster(mat,
                                                  f'normed hic & breakpoints chr{chr_n}\n{inspect.getsource(f_proximity)}',
-                                                 bin_pairs,
+                                                 coord_pairs_bin,
                                                  cluster_bins,
                                                  save_path=donorspath + f'/{donor}/{chr_n}.png')
         rep.insert_donorinfo(donor, chr_n, f_id)
@@ -93,26 +106,50 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
         print(dens)
 
         corr_densities.append(dens)
-        corr_sv_cnt.append(len(bin_pairs))
+        corr_sv_cnt.append(len(coord_pairs_bin))
         corr_edges_cnt.append(number_of_edges)
 
-        print(f'clusters {cluster_bins}')
-        periphery = set()
         info_id = rep.get_info_id(donor, chr_n, f_id)
-        rep.insert_cluster(info_id, tuple(cluster_bins))
         rep.insert_dense(info_id, dens)
-        for b in bin_pairs:
+        collect_periphery_and_cluster(rep, info_id, in_bp, cluster_bins, all_coords, resolution, coord_pairs)
+
+    return corr_densities, corr_sv_cnt, corr_edges_cnt
+
+
+def collect_periphery_and_cluster(rep, info_id, in_bp, cluster_bins, all_coords, resolution, coord_pairs):
+    periphery = set()
+    cluster_bins_set = set(cluster_bins)
+    if not in_bp:
+        rep.insert_cluster(info_id, tuple(cluster_bins))
+    else:
+        coords_bp_to_insert = []
+        for coord in all_coords:
+            coord_bin = int(coord / resolution)
+            if coord_bin in cluster_bins_set:
+                coords_bp_to_insert.append(coord)
+        rep.insert_cluster(info_id, tuple(coords_bp_to_insert))
+
+    if not in_bp:
+        for b in coord_pairs:
             i = b[0]
             j = b[1]
             if i in cluster_bins and j not in cluster_bins:
                 periphery.add(j)
             if j in cluster_bins and i not in cluster_bins:
                 periphery.add(i)
-        print(f'periphery: {periphery}')
-        rep.insert_periphery(info_id, tuple(list(periphery)))
-        print(f'all sv: {all_bins}')
+    else:
+        for b in coord_pairs:
+            i = int(b[0] / resolution)
+            j = int(b[1] / resolution)
+            if i in cluster_bins and j not in cluster_bins:
+                periphery.add(b[1])
+            if j in cluster_bins and i not in cluster_bins:
+                periphery.add(b[0])
+    rep.insert_periphery(info_id, tuple(list(periphery)))
 
-    return corr_densities, corr_sv_cnt, corr_edges_cnt
+    print(f'clusters {cluster_bins}')
+    print(f'periphery: {periphery}')
+    print(f'all sv: {all_coords}')
 
 
 def plot_donor_info(donor, f_id, rep: DonorRepository):
@@ -183,7 +220,7 @@ def main():
             create_path_if_not_exist(corr_path)
             for donor in donors:
                 corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=functions[f_id - 1], rep=rep,
-                              hic_plot=False)
+                              hic_plot=False, in_bp=True)
                 densess.extend(corr_densities)
                 svscnt.extend(corr_sv_cnt)
                 edgescnt.extend(corr_edges_cnt)
@@ -384,7 +421,7 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [1, 2, 11, 12, 3]
+    iss = [1]
     # for i in range(1, 4):
     for i in iss:
         # for i in range(1, max_range_pow + 1):
@@ -557,9 +594,9 @@ def hic_oe_analyzer(oe=False):
         densess = []
         svscnt = []
         edgescnt = []
-        for donor in donors:
+        for donor in tqdm(donors):
             corr_densities, corr_sv_cnt, corr_edges_cnt = analyze_donor(donor=donor, cooler=cool, f_id=f_id, f_proximity=f, rep=rep,
-                          hic_plot=False, from_hic=True, oe=oe)
+                          hic_plot=False, from_hic=True, oe=oe, in_bp=True)
             densess.extend(corr_densities)
             svscnt.extend(corr_sv_cnt)
             edgescnt.extend(corr_edges_cnt)
@@ -623,17 +660,17 @@ def cluster_sustainability_percentile_test():
 if __name__ == '__main__':
     # main()
 
-    # all_hists(ratio=0.8)  # 0.9965: -1,  0.975: -2
+    # all_hists(ratio=0.7)
 
     # seek_test()
 
     # measure_test()
 
-    shatter_seek_compare(analyze_donor_chr_pairs=False)
+    # shatter_seek_compare(analyze_donor_chr_pairs=False)
     # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
+    hic_oe_analyzer(oe=False)
 
-    # hic_oe_analyzer(oe=True)
     #corr_test(4)
     # cluster_sustainability_percentile_test()
 
