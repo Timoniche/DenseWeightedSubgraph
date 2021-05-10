@@ -7,10 +7,8 @@ import numpy as np
 import os
 import sys
 
-from matplotlib import rcParams
-
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
-    plot_seek_distibution, plot_seek_compare
+    plot_seek_distibution, plot_seek_compare, plot_sustainability
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
@@ -632,9 +630,13 @@ def corr_test(f_id):
 def cluster_sustainability_percentile_test():
     t1 = time.time()
     fid_cluster_map = {}
+    fid_donor_chr_pairs = {}
+    fid_chromo_donors = {}
     ratio_healthy = 0.8
     functions_cnt = 12
-    adj = np.zeros((functions_cnt, functions_cnt))
+    adj_cluster = np.zeros((functions_cnt, functions_cnt))
+    adj_donor_chr = adj_cluster.copy()
+    adj_donor = adj_cluster.copy()
     with DonorRepository() as rep:
         for f_id in range(1, functions_cnt + 1):
             infoids = hist_patients(f_id, ratio=ratio_healthy, dens_plot=False, cluster_plot=False,
@@ -644,36 +646,39 @@ def cluster_sustainability_percentile_test():
                 cluster_set = set(rep.get_cluster(info_id))
                 cur_set: set = fid_cluster_map.get(f_id - 1, set())
                 fid_cluster_map[f_id - 1] = cur_set.union(cluster_set)
+
+                _donor, _chr, _ = rep.get_by_infoid(info_id)
+                cur_donor_chr_set: set = fid_donor_chr_pairs.get(f_id - 1, set())
+                cur_donor_chr_set.add((_donor, _chr))
+                fid_donor_chr_pairs[f_id - 1] = cur_donor_chr_set
+
+                cur_donor_set: set = fid_chromo_donors.get(f_id - 1, set())
+                cur_donor_set.add(_donor)
+                fid_chromo_donors[f_id - 1] = cur_donor_set
+
     for i in range(functions_cnt):
         for j in range(i, functions_cnt):
-            adj[i][j] = len(fid_cluster_map[i].intersection(fid_cluster_map[j]))
+            adj_cluster[i][j] = len(fid_cluster_map[i].intersection(fid_cluster_map[j]))
+            adj_donor_chr[i][j] = len(fid_donor_chr_pairs[i].intersection(fid_donor_chr_pairs[j]))
+            adj_donor[i][j] = len(fid_chromo_donors[i].intersection(fid_chromo_donors[j]))
 
-    print(adj)
+    cluster_title = f'common cluster breakpoints\npercentile healthy = {ratio_healthy}'
+    donor_chr_title = f'common chromo donor-chr pairs\npercentile healthy = {ratio_healthy}'
+    donor_title = f'common chromo donors\npercentile healthy = {ratio_healthy}'
+    cluster_save_path = 'seek_compare/common_cluster_bps.png'
+    donor_chr_save_path = 'seek_compare/common_donor_chr_pairs.png'
+    donor_save_path = 'seek_compare/common_donors.png'
 
-    rcParams.update({'figure.autolayout': True})
-    plt.title(f'common cluster breakpoints\npercentile healthy = {ratio_healthy}')
-    plt.imshow(adj, interpolation='none')
-
-    for (j, i), label in np.ndenumerate(adj):
-        plt.text(i, j, int(label), ha='center', va='center', fontsize=7)
-
-    ticks_simba = [f'pow={i}' for i in range(0, -10, -1)]
-    ticks_hic = (['pure Hi-C', 'o/e Hi-C'])
-    ticks = [*ticks_simba, *ticks_hic]
-    plt.xticks(np.arange(functions_cnt), ticks, rotation=90, fontsize=7)
-    plt.yticks(np.arange(functions_cnt), ticks, fontsize=7)
-
-    save_path = 'seek_compare/common_cluster_bps'
-    create_path_if_not_exist(save_path)
-    plt.savefig(save_path)
-    plt.show()
+    plot_sustainability(adj=adj_cluster, functions_cnt=functions_cnt, title=cluster_title, save_path=cluster_save_path)
+    plot_sustainability(adj=adj_donor_chr, functions_cnt=functions_cnt, title=donor_chr_title,
+                        save_path=donor_chr_save_path)
+    plot_sustainability(adj=adj_donor, functions_cnt=functions_cnt, title=donor_title, save_path=donor_save_path)
 
     t2 = time.time()
     print(f'sustainability test took {t2 - t1} sec')
 
 
 if __name__ == '__main__':
-
     # main()
 
     # all_hists(ratio=0.7)

@@ -170,6 +170,25 @@ def heatmap_with_breakpoints_and_cluster(arr, plot_title, breakpoint_edges, clus
     plt.show()
 
 
+def plot_sustainability(adj, functions_cnt, title, save_path):
+    rcParams.update({'figure.autolayout': True})
+    plt.title(title)
+    plt.imshow(adj, interpolation='none')
+
+    for (j, i), label in np.ndenumerate(adj):
+        plt.text(i, j, int(label), ha='center', va='center', fontsize=7)
+
+    ticks_simba = [f'pow={i}' for i in range(0, -10, -1)]
+    ticks_hic = (['pure Hi-C', 'o/e Hi-C'])
+    ticks = [*ticks_simba, *ticks_hic]
+    plt.xticks(np.arange(functions_cnt), ticks, rotation=90, fontsize=7)
+    plt.yticks(np.arange(functions_cnt), ticks, fontsize=7)
+
+    create_path_if_not_exist(save_path)
+    plt.savefig(save_path)
+    plt.show()
+
+
 def plot_seek_compare(accs, recalls, precisions, ratios, title, save_path):
     rcParams.update({'figure.autolayout': True})
     plt.title(title)
