@@ -150,7 +150,22 @@ class DonorRepository:
             '  FROM chromo ' +
             f'  WHERE "Chr" SIMILAR TO \'{regex_up_to_21}\''
         )
-        row = self.cur.fetchall()
+        rows = self.cur.fetchall()
+        return rows
+
+    def get_seek_markup_by_donor_chr(self, donor, chr):
+        self.cur.execute(
+            ' SELECT ' +
+            '   donor_unique_id, ' +
+            '   "Chr", ' +
+            '   "Start", ' +
+            '   "End", ' +
+            '   chromo_label ' +
+            '  FROM chromo ' +
+            f'  WHERE "Chr" SIMILAR TO \'{chr}\' ' +
+            f'    AND donor_unique_id SIMILAR TO \'%{donor}%\' '
+        )
+        row = self.cur.fetchone()
         return row
 
     # -1 not found

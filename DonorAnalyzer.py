@@ -10,7 +10,8 @@ import sys
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
     plot_seek_distibution, plot_seek_compare, plot_sustainability
 from DonorRepository import DonorRepository
-from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution
+from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution, \
+    filter_chr_svs_with_resolution
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
 
 import matplotlib.pyplot as plt
@@ -490,8 +491,10 @@ def shatter_seek_compare(analyze_donor_chr_pairs=False):
         COMMON_DONORS = seek_donors.intersection(pcawg_donors)
         COMMON_DONOR_CHR_PAIRS = list(map(lambda e: (e[0], int(e[1])), seek_chr_pairs.intersection(pcawg_pairs)))
 
-        iss = [11, 12, 1, 2, 3]
-        ratios = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
+        # iss = [11, 12, 1, 2, 3]
+        iss = [11]
+        # ratios = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
+        ratios = [0.75]
         print(f'mode donor chr pairs={analyze_donor_chr_pairs}')
         for i in iss:
             print(f'f_id = {i}')
@@ -499,6 +502,8 @@ def shatter_seek_compare(analyze_donor_chr_pairs=False):
             recalls = []
             precisions = []
             for ratio in ratios:
+                common_chromo_donor_pairs = []
+
                 infoids = hist_patients(i, ratio=ratio, dens_plot=False, seek_plot=False, periphery_plot=False,
                                         cluster_plot=False)
                 chromo_donors = set()
@@ -522,6 +527,12 @@ def shatter_seek_compare(analyze_donor_chr_pairs=False):
                             own_v.append(1)
                         else:
                             own_v.append(0)
+                        if seek_v[-1] == 1 and own_v[-1] == 1:
+                            common_chromo_donor_pairs.append(p)
+                    common_chromo_pairs_path = f'seek_compare/{f_id}/{ratio}/common_pairs.npy'
+                    create_path_if_not_exist(common_chromo_pairs_path)
+                    with open(common_chromo_pairs_path, 'wb') as fl:
+                        np.save(fl, np.array(common_chromo_donor_pairs))
                 else:
                     for d in COMMON_DONORS:
                         if d in seek_chromo_donors:
@@ -542,6 +553,7 @@ def shatter_seek_compare(analyze_donor_chr_pairs=False):
                 recalls.append(recall)
                 precisions.append(precision)
                 print(f'  percentile_healthy_threshold={ratio}, acc={acc}, recall={recall} precision={precision}')
+                print(f'  common chromo donor pairs:\n{common_chromo_donor_pairs}')
             f_source = rep.get_proximity_code(i)
             if analyze_donor_chr_pairs:
                 save_path = f'seek_compare/by_donor_chr_pairs/{i}.png'
@@ -627,6 +639,88 @@ def corr_test(f_id):
     print(np.corrcoef(denss, list(map(math.sqrt, edgess)))[0, 1])
 
 
+def diff_example_own_seek(f_id, ratio):
+    print(f'f_id = {f_id}, ratio = {ratio}')
+    common_chromo_pairs_path = f'seek_compare/{f_id}/{ratio}/common_pairs.npy'
+    with open(common_chromo_pairs_path, 'rb') as fl:
+        donor_pairs: np.ndarray = np.load(fl)
+        print(f'donor_pairs:\n{donor_pairs}')
+        donors = list(set(map(lambda p: p[0], donor_pairs.tolist())))
+        print(f'donors:\n{donors}')
+
+        cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+        with DonorRepository() as rep:
+            for donor in tqdm(donors):
+                _, _, _ = analyze_donor(donor=donor, cooler=cool, f_id=f_id,
+                                        f_proximity=identity_hic, rep=rep,
+                                        hic_plot=True, from_hic=True, oe=False,
+                                        in_bp=True)
+
+
+def find_the_most_diff_seek_pair(f_id, ratio):
+    print(f'f_id = {f_id}, ratio = {ratio}')
+    common_chromo_pairs_path = f'seek_compare/{f_id}/{ratio}/common_pairs.npy'
+    with open(common_chromo_pairs_path, 'rb') as fl:
+        donor_pairs: np.ndarray = np.load(fl)
+        print(f'donor_pairs:\n{donor_pairs}')
+        for (donor, chr) in donor_pairs:
+            min_own, max_own, min_seek, max_seek = donor_chr_pair_analyzer(donor, chr, f_id)
+            if min_own < min_seek or max_own > max_seek:
+                print(f'donor: {donor}, chr: {chr}')
+                print(min_own, max_own, min_seek, max_seek)
+
+
+
+def donor_chr_pair_analyzer(donor, chr, f_id):
+    print(f'donor: {donor}, chr: {chr}')
+    cool = cooler.Cooler('healthy_hics/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    resolution = cool.info['bin-size']
+    with DonorRepository() as rep:
+        info_id = rep.get_info_id(donor, chr, f_id)
+        # print(f'info_id: {info_id}')
+        _, _, start_bp, end_bp, _ = rep.get_seek_markup_by_donor_chr(donor, chr)
+        # print(f'start_bp: {start_bp}, end_bp: {end_bp}')
+        _svs = rep.get_donor_chr_svs(donor, chr)
+        filtered_svs = filter_chr_svs_with_resolution(_svs, resolution)
+        # print(f'filtered_svs: {filtered_svs}')
+        chromo_seek_bps = seek_chromo_svs_by_range(start_bp, end_bp, filtered_svs)
+        chromo_seek_bins = list(set(map(lambda x: int(x / resolution), chromo_seek_bps)))
+
+        print(f'cnt bp seek: {len(chromo_seek_bps)}')
+        print(f'chromo seek bps: {chromo_seek_bps}')
+        print(f'cnt bin seek: {len(chromo_seek_bins)}')
+        print(f'chromo seek bins: {chromo_seek_bins}')
+
+        chromo_own_bps = rep.get_cluster(info_id)
+        chromo_own_bins = list(set(map(lambda x: int(x / resolution), chromo_own_bps)))
+
+        print(f'cnt bp own: {len(chromo_own_bps)}')
+        print(f'chromo own bps: {chromo_own_bps}')
+        print(f'cnt bin own: {len(chromo_own_bins)}')
+        print(f'chromo own bins: {chromo_own_bins}')
+
+        set_seek_bins = set(chromo_seek_bins)
+        set_own_bins = set(chromo_own_bins)
+
+        common_bins = set_seek_bins.intersection(set_own_bins)
+        extra_seek_bins = set_seek_bins.difference(set_own_bins)
+        extra_own_bins = set_own_bins.difference(set_seek_bins)
+        print(f'common_bins: {common_bins}')
+        print(f'extra seek bins: {extra_seek_bins}')
+        print(f'extra own bins: {extra_own_bins}')
+
+        return min(chromo_own_bps), max(chromo_own_bps), min(chromo_seek_bps), max(chromo_seek_bps),
+
+
+def seek_chromo_svs_by_range(_start, _end, svs):
+    chromo_bps = set()
+    for bp1, bp2 in svs:
+        if _start <= bp1 <= _end:
+            chromo_bps.add(bp1)
+        if _start <= bp2 <= _end:
+            chromo_bps.add(bp2)
+    return list(chromo_bps)
+
 def cluster_sustainability_percentile_test():
     t1 = time.time()
     fid_cluster_map = {}
@@ -691,8 +785,14 @@ if __name__ == '__main__':
 
     # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
+    # diff_example_own_seek(11, 0.75)
+
+    donor_chr_pair_analyzer('0091_CRUK_PC_0091', 13, 11)
+
+    # find_the_most_diff_seek_pair(11, 0.75)
+
     # hic_oe_analyzer(oe=True)
 
     # corr_test(4)
 
-    cluster_sustainability_percentile_test()
+    # cluster_sustainability_percentile_test()

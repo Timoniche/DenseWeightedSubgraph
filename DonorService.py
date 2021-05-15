@@ -33,3 +33,14 @@ def filter_svs_with_resolution(svs, resolution):
         else:
             chr_sv_map[chr_n].append((bp1, bp2))
     return chr_sv_map
+
+
+def filter_chr_svs_with_resolution(svs, resolution):
+    filtered_svs = []
+    for sv in svs:
+        bp1, bp2 = sv
+        bin1, bin2 = bps_to_bins_with_resolution(bp1, bp2, resolution)
+        if abs(bin1 - bin2) <= 1:
+            continue
+        filtered_svs.append((bp1, bp2))
+    return filtered_svs
