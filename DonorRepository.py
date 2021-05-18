@@ -135,9 +135,19 @@ class DonorRepository:
     def get_donor_chr_svs(self, donor, chr):
         self.cur.execute(
             f'SELECT bp1, bp2 FROM sv_intra \
-                  WHERE donor_id = \'{donor}\' \
+                WHERE donor_id = \'{donor}\' \
                   AND chr = \'{chr}\'')
         rows = self.cur.fetchall()
+        return rows
+
+    def get_donor_fid_infoids(self, donor, fid):
+        self.cur.execute(
+            f'SELECT info_id FROM donorinfo \
+                WHERE donor_id = \'{donor}\' \
+                  AND function_id = \'{fid}\' '
+        )
+        rows = self.cur.fetchall()
+        rows = list(map(lambda p: p[0], rows))
         return rows
 
     def get_seek(self):

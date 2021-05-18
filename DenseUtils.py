@@ -41,6 +41,12 @@ def find_first_predicate_index(arr, predicate):
     return -1
 
 
+def div_with_none(a, b):
+    if b == 0:
+        return None
+    return a / b
+
+
 def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: DonorRepository, store_path, title):
     dens_sorted_info_ids = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
     denss = list(map(lambda p: p[0], top_ratio_infos_sorted_by_dens))
