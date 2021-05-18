@@ -47,6 +47,10 @@ def div_with_none(a, b):
     return a / b
 
 
+def filter_nones(arr):
+    return list(filter(lambda x: x is not None, arr))
+
+
 def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: DonorRepository, store_path, title):
     dens_sorted_info_ids = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
     denss = list(map(lambda p: p[0], top_ratio_infos_sorted_by_dens))

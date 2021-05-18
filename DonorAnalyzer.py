@@ -8,7 +8,7 @@ import os
 import sys
 
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
-    plot_seek_distibution, plot_seek_compare, plot_sustainability, div_with_none
+    plot_seek_distibution, plot_seek_compare, plot_sustainability, div_with_none, filter_nones
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution, \
     filter_chr_svs_with_resolution
@@ -235,7 +235,34 @@ def main():
     print(f'filling db took {t2 - t1} sec')
 
 
-def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot=True, seek_plot=True):
+def seek_hills_distrib(ratio, fid=11):
+    infoids = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False, periphery_plot=False,
+                                    cluster_plot=False)
+    cnt_left = 0
+    cnt_right = 0
+    sz = len(infoids)
+    sz_left = sz * ratio
+    sz_right = sz * (1 - ratio)
+    print(f'sz {sz} sz_left {sz_left} sz_right {sz_right}')
+    with DonorRepository() as rep:
+        i = 0
+        for info_id in infoids:
+            donor, chrN, _ = rep.get_by_infoid(info_id)
+            _, _, _, _, label = rep.get_chromo(donor, chrN)
+            if label == 'High confidence':
+                if i / sz >= ratio:
+                    cnt_right += 1
+                else:
+                    cnt_left += 1
+            i += 1
+    print(f'concentration: left {cnt_left / sz_left} right {cnt_right / sz_right}')
+    return cnt_left, cnt_right
+
+
+def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot=True, seek_plot=True, chr_num=-1,
+                  weights=None):
+    if weights is None:
+        weights = []
     t1 = time.time()
     denss_info = []
     clusters = []
@@ -244,10 +271,16 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
     with DonorRepository() as rep:
         donors = rep.unique_prostate_donors()
         for donor in donors:
-            for i in range(1, 22):
+            if chr_num == -1:
+                rng = range(1, 22)
+            else:
+                rng = range(chr_num, chr_num + 1)
+            for i in rng:
                 info_id = rep.get_info_id(donor, i, f_id)
                 if info_id != -1:
                     dens = rep.get_density(info_id)
+                    if weights:
+                        dens *= weights[i - 1]
                     cluster = len(rep.get_cluster(info_id))
                     periphery = len(rep.get_periphery(info_id))
                     denss_info.append((dens, info_id))
@@ -430,6 +463,26 @@ def all_hists(ratio):
         # if infoids:
         #     avg = relation_chromo_chrs_per_donor(infoids)
         #     print(f'chromo chr per 1 donor = {avg} with f_id = {i}')
+
+
+def cnt_chr_weights(fid):
+    weights = []
+    with DonorRepository() as rep:
+        for _chr in range(1, 22):
+            infoids = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False, periphery_plot=False,
+                                    cluster_plot=False, chr_num=_chr)
+            denss = []
+            for info_id in infoids:
+                denss.append(rep.get_density(info_id))
+            avg_chr_dense = np.average(denss)
+            weights.append(1.0 / avg_chr_dense)
+    return weights
+
+
+def weighted_hist(fid, ratio):
+        # weights = cnt_chr_weights(fid)
+        infoids = hist_patients(f_id=fid, ratio=ratio, dens_plot=True, seek_plot=False, periphery_plot=False,
+                                cluster_plot=False)
 
 
 def seek_test():
@@ -772,11 +825,9 @@ def cluster_sustainability_percentile_test():
     print(f'sustainability test took {t2 - t1} sec')
 
 
-def inner_chromo_donor_metrics():
-    hic_fid = 11
-    ratio_healthy = 0.7
+def inner_chromo_donor_metrics(fid=11, ratio_healthy=0.7):
     with DonorRepository() as rep:
-        infoids = hist_patients(f_id=hic_fid, ratio=ratio_healthy, dens_plot=False, cluster_plot=False,
+        infoids = hist_patients(f_id=fid, ratio=ratio_healthy, dens_plot=False, cluster_plot=False,
                                 periphery_plot=False,
                                 seek_plot=False)
         chromo_donors = set()
@@ -784,17 +835,41 @@ def inner_chromo_donor_metrics():
             _donor, _chr, _ = rep.get_by_infoid(infoid)
             chromo_donors.add(_donor)
 
-        for chromo_donor in chromo_donors:
-            print(chromo_donor)
+        count_avg_hill_metrics(chromo_donors, fid)
 
-            donor_all_chrs_infoids = rep.get_donor_fid_infoids(chromo_donor, hic_fid)
+        all_donors = set(rep.unique_prostate_donors())
+        non_chromo_donors = all_donors.difference(chromo_donors)
+
+        count_avg_hill_metrics(non_chromo_donors, fid)
+
+
+def count_avg_hill_metrics(donors, fid):
+    tops_to_next, tops_to_avg, tops_to_quantile, tops_to_med = donor_hill_metrics(donors, fid)
+    avg_tops_to_next = np.average(filter_nones(tops_to_next))
+    avg_tops_to_avg = np.average(filter_nones(tops_to_avg))
+    avg_tops_to_quantile = np.average(filter_nones(tops_to_quantile))
+    avg_tops_to_med = np.average(filter_nones(tops_to_med))
+    print(f'avg top to: next {avg_tops_to_next}, avg {avg_tops_to_avg}, ' +
+          f'high quantile {avg_tops_to_quantile}, median {avg_tops_to_med}')
+
+
+def donor_hill_metrics(donors, fid):
+    tops_to_next = []
+    tops_to_avg = []
+    tops_to_quantile = []
+    tops_to_med = []
+    with DonorRepository() as rep:
+        for chromo_donor in donors:
+            # print(chromo_donor)
+
+            donor_all_chrs_infoids = rep.get_donor_fid_infoids(chromo_donor, fid)
             donor_all_chrs_denss = list(map(rep.get_density, donor_all_chrs_infoids))
             sz = len(donor_all_chrs_denss)
             all_chrs = 21
             for i in range(all_chrs - sz):
                 donor_all_chrs_denss.append(0)
             denss_sorted = sorted(donor_all_chrs_denss)
-            print(denss_sorted)
+            #print(denss_sorted)
 
             top_hill = denss_sorted[-1]
             next_hill = denss_sorted[-2]
@@ -807,7 +882,12 @@ def inner_chromo_donor_metrics():
             top_to_quantile = div_with_none(top_hill, quantile_dens)
             top_to_med = div_with_none(top_hill, med_dens)
 
-            print(f'top to: next {top_to_next}, avg {top_to_avg}, high quantile {top_to_quantile}, median {top_to_med}')
+            tops_to_next.append(top_to_next)
+            tops_to_avg.append(top_to_avg)
+            tops_to_quantile.append(top_to_quantile)
+            tops_to_med.append(top_to_med)
+            # print(f'top to: next {top_to_next}, avg {top_to_avg}, high quantile {top_to_quantile}, median {top_to_med}')
+    return tops_to_next, tops_to_avg, tops_to_quantile, tops_to_med
 
 
 if __name__ == '__main__':
@@ -827,7 +907,12 @@ if __name__ == '__main__':
 
     # donor_chr_pair_analyzer('0091_CRUK_PC_0091', 13, 11)
 
-    inner_chromo_donor_metrics()
+    # inner_chromo_donor_metrics()
+
+    # weighted_hist(11, 0.7)
+
+    l, r = seek_hills_distrib(0.7)
+    print(l, r)
 
     # find_the_most_diff_seek_pair(11, 0.75)
 
