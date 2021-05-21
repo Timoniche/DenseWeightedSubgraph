@@ -454,7 +454,7 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [1]
+    iss = [1, 11]
     # for i in range(1, 4):
     for i in iss:
         # for i in range(1, max_range_pow + 1):
@@ -893,7 +893,7 @@ def donor_hill_metrics(donors, fid):
 if __name__ == '__main__':
     # main()
 
-    # all_hists(ratio=0.7)
+    #all_hists(ratio=0.7)
 
     # seek_test()
 
@@ -911,7 +911,7 @@ if __name__ == '__main__':
 
     # weighted_hist(11, 0.7)
 
-    l, r = seek_hills_distrib(0.7)
+    l, r = seek_hills_distrib(0.7, fid=11)
     print(l, r)
 
     # find_the_most_diff_seek_pair(11, 0.75)

@@ -7,6 +7,15 @@ from utils.graph_generator import gen_random_graph
 
 
 class TestCase(unittest.TestCase):
+    def test_pre_defense(self):
+        number_of_nodes = 4
+        number_of_edges = 6
+        filepath = "weighted.txt"
+        ans = WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath)
+        dens = WFind_Density(ans, filepath)
+        print(ans)
+        print(dens)
+
     def test_not_weighted(self):
         number_of_nodes = 15
         filepath = "random.txt"
