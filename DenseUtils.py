@@ -9,6 +9,7 @@ import numpy as np
 import inspect
 
 from matplotlib import rcParams
+from sklearn.mixture import GaussianMixture
 
 from DonorRepository import DonorRepository
 from GoldbergWeighted import WFind_Densest_Subgraph, WFind_Density
@@ -49,7 +50,6 @@ def div_with_none(a, b):
 
 def filter_nones(arr):
     return list(filter(lambda x: x is not None, arr))
-
 
 def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: DonorRepository, store_path, title):
     dens_sorted_info_ids = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
@@ -94,7 +94,7 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
     data = np.array([seek_no_data, seek_no, seek_low, seek_almost_low, seek_almost_high, seek_high])
     bottom = np.cumsum(data, axis=0)
     colors = ('lightcyan', 'lime', 'green', 'yellow', 'red', 'black')
-    labels = ('no data', 'healthy', 'low', 'almost low', 'almost high', 'high')
+    labels = ('no data', 'no chromo', 'low', 'linked to low', 'linked to high', 'high')
     plt.bar(ids, data[0], align='center', label=labels[0], color=colors[0])
     for j in range(1, data.shape[0]):
         plt.bar(ids, data[j], color=colors[j], label=labels[j], align='center', bottom=bottom[j - 1])
@@ -106,6 +106,36 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
     plt.savefig(store_path)
     plt.show()
 
+def plot_mixed_denss(denss, to_plot):
+    i_denss = list(enumerate(denss))
+    gm_dens_input = np.array(denss).reshape(-1, 1)
+    n_components = 5
+    gm = GaussianMixture(n_components=n_components, random_state=0).fit(gm_dens_input)
+    #print(f'gm means {gm.means_}')
+    labels = gm.predict(gm_dens_input)
+    numed_hills = []
+    for i in range(n_components):
+        numed_hills.append(list(filter(lambda i_d: labels[i_d[0]] == i, i_denss)))
+
+    hills = []
+    for i in range(n_components):
+        hills.append(list(map(lambda p: p[1], numed_hills[i])))
+    sz = max(denss) - min(denss)
+    bins = []
+    for i in range(n_components):
+        bins.append(int(100 * (max(hills[i]) - min(hills[i])) / sz))
+    if bins[0] == 0:
+        bins[0] = 1
+    colors = ['green', 'red', 'blue', 'orange', 'grey']
+    if to_plot:
+        for i in range(n_components):
+            plt.hist(hills[i], bins=bins[i], color= colors[i])
+        plt.show()
+    #print(labels)
+    thresholds = [list(labels).index(i) for i in range(n_components)]
+    #print(thresholds)
+    thresholds.append(len(denss))
+    return sorted(thresholds)
 
 def plot_distribution(arr, store_path, function_code, label, xlabel, ratio, buckets_cnt, text=None, color='null'):
     rcParams.update({'figure.autolayout': True})
@@ -207,8 +237,8 @@ def plot_seek_compare(accs, recalls, precisions, ratios, title, save_path):
     plt.plot(ratios, precisions, label='precision')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     create_path_if_not_exist(save_path)
-    plt.savefig(save_path)
     plt.grid()
+    plt.savefig(save_path)
     plt.show()
 
 

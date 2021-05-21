@@ -25,7 +25,7 @@ def WFind_Density(answer, filepath):
 
 
 
-def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath):
+def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath, cluster_threshold_size):
     ''' This function performs the binary search of the density of subgraph and finds the densest subgraph.'''
     min_degree = 0
 
@@ -55,7 +55,7 @@ def WFind_Densest_Subgraph(number_of_nodes, number_of_edges, filepath):
         least_density = (max_degree + min_degree) / 2.0
         # print "ld--->", least_density
         source_segment = Wmake_graph(number_of_nodes, number_of_edges, least_density, filepath)
-        if (source_segment == []):
+        if len(source_segment) <= cluster_threshold_size:
             max_degree = least_density
         else:
             min_degree = least_density
