@@ -28,9 +28,9 @@ donorspath = script_dir + '/donors'
 
 def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_plot, cluster_threshold_size,
                   from_hic=False, oe=False,
-                  in_bp=False):
+                  in_bp=False, _table='sv_intra'):
     print(donor)
-    svs = rep.get_donor_sv_chr_1_21(donor)
+    svs = rep.get_donor_sv_chr_1_21(donor, _table)
 
     resolution = cooler.info['bin-size']
 
@@ -238,8 +238,8 @@ def main():
     print(f'filling db took {t2 - t1} sec')
 
 
-def seek_hills_distrib(ratio, fid=11):
-    infoids = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False, periphery_plot=False,
+def seek_hills_distrib(ratio, fid=16):
+    infoids_sorted_by_dens, infoids, thresholds = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False, periphery_plot=False,
                             cluster_plot=False)
     cnt_left = 0
     cnt_right = 0
@@ -263,7 +263,7 @@ def seek_hills_distrib(ratio, fid=11):
 
 
 def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot=True, seek_plot=True, chr_num=-1,
-                  weights=None, cluster_threshold_sz=0, dens_threshold=0, types5plot=False):
+                  weights=None, cluster_threshold_sz=0, dens_threshold=0, types5plot=False, _table='sv_intra'):
     if weights is None:
         weights = []
     t1 = time.time()
@@ -272,7 +272,7 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
     peripheries = []
     infoids_after_ratio = []
     with DonorRepository() as rep:
-        donors = rep.unique_prostate_donors()
+        donors = rep.unique_prostate_donors(_table)
         for donor in donors:
             if chr_num == -1:
                 rng = range(1, 22)
@@ -295,6 +295,7 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
         code = rep.get_proximity_code(f_id)
 
         denss = list(map(lambda x: x[0], denss_info))
+        print(f'avg dens: {np.average(denss)}')
 
         top_ratio_infos_sorted_by_dens = sorted(denss_info, key=lambda p: p[0])
         infoids_sorted_by_dens = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
@@ -314,7 +315,8 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
         dens_path = f'distribution/densities/{f_id}.png'
         if dens_plot:
             plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt, text=text_ratios_map)
-        thresholds = plot_mixed_denss(sorted(denss), to_plot=types5plot)
+        thresholds_paths = f'distribution/thresholds/{f_id}.png'
+        thresholds = plot_mixed_denss(sorted(denss), to_plot=types5plot, save_path=thresholds_paths)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
         if cluster_plot:
@@ -462,17 +464,15 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [11]
+    iss = [16]
     # for i in range(1, 4):
     for i in iss:
         all_infoids_by_denss, infoids_after_ratios, thresholds = hist_patients(i, ratio=ratio, dens_plot=True,
                                                                                seek_plot=True,
-                                                                               periphery_plot=False,
-                                                                               cluster_plot=False,
-                                                                               cluster_threshold_sz=3, dens_threshold=0,
+                                                                               periphery_plot=True,
+                                                                               cluster_plot=True,
+                                                                               cluster_threshold_sz=0, dens_threshold=0,
                                                                                types5plot=True)
-        print(f'denss cnt {len(all_infoids_by_denss)}')
-
 
 def cnt_chr_weights(fid):
     weights = []
@@ -769,6 +769,10 @@ def identity_hic(x):
     return x
 
 
+def frankenstein_hic(x):
+    return x
+
+
 def filter_identity_hic_480kb(x):
     return x
 
@@ -777,14 +781,14 @@ def filter_identity_hic_40kb(x):
     return x
 
 
-def hic_oe_analyzer(cool, f, oe=False):
+def hic_oe_analyzer(cool, f, _table, oe=False):
     t1 = time.time()
     cluster_threshold_size = 2
     with DonorRepository() as rep:
         rep.ddl()
         rep.insert_proximity(f)
         f_id = rep.get_proximity_id(inspect.getsource(f))
-        donors = rep.unique_prostate_donors()
+        donors = rep.unique_prostate_donors(_table)
 
         corr_path = f'distribution/corr/{f_id}/corr_arrays.npy'
         create_path_if_not_exist(corr_path)
@@ -797,7 +801,8 @@ def hic_oe_analyzer(cool, f, oe=False):
                                                                         f_proximity=f, rep=rep,
                                                                         hic_plot=False, from_hic=True, oe=oe,
                                                                         in_bp=True,
-                                                                        cluster_threshold_size=cluster_threshold_size)
+                                                                        cluster_threshold_size=cluster_threshold_size,
+                                                                        _table=_table)
             densess.extend(corr_densities)
             svscnt.extend(corr_sv_cnt)
             edgescnt.extend(corr_edges_cnt)
@@ -1069,7 +1074,7 @@ if __name__ == '__main__':
 
     # shatter_seek_compare(analyze_donor_chr_pairs=True)
 
-    #gmm_seek_5types_compare(analyze_donor_chr_pairs=False, seekLabel=SeekClassification.NO)
+    # gmm_seek_5types_compare(analyze_donor_chr_pairs=False, seekLabel=SeekClassification.NO)
     # diff_example_own_seek(11, 0.75)
 
     # donor_chr_pair_analyzer('0091_CRUK_PC_0091', 13, 11)
@@ -1078,14 +1083,14 @@ if __name__ == '__main__':
 
     # weighted_hist(11, 0.7)
 
-    # l, r = seek_hills_distrib(0.75, fid=13)
+    # l, r = seek_hills_distrib(0.71, fid=11)
     # print(l, r)
 
     # find_the_most_diff_seek_pair(11, 0.75)
 
-    # cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
+    #cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
     # cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
-    # hic_oe_analyzer(cool=cool, f=filter_identity_hic_40kb)
+    #hic_oe_analyzer(cool=cool, f=frankenstein_hic, _table='frankenstein')
 
     # corr_test(4)
 

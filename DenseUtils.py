@@ -106,7 +106,7 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
     plt.savefig(store_path)
     plt.show()
 
-def plot_mixed_denss(denss, to_plot):
+def plot_mixed_denss(denss, to_plot, save_path):
     i_denss = list(enumerate(denss))
     gm_dens_input = np.array(denss).reshape(-1, 1)
     n_components = 5
@@ -130,6 +130,8 @@ def plot_mixed_denss(denss, to_plot):
     if to_plot:
         for i in range(n_components):
             plt.hist(hills[i], bins=bins[i], color= colors[i])
+        create_path_if_not_exist(save_path)
+        plt.savefig(save_path)
         plt.show()
     #print(labels)
     thresholds = [list(labels).index(i) for i in range(n_components)]

@@ -25,6 +25,17 @@ class DonorRepository:
         )
         self.cur = self.con.cursor()
 
+    def frankenstein_ddl(self):
+        try:
+            self.cur.execute('SELECT ' +
+                             'to_regclass(\'frankenstein\') ')
+            rows = self.cur.fetchall()
+            if None in rows[0]:
+                self.cur.execute(open(self.sqlpath + '/frankenstein_ddl.sql', "r").read())
+        except BaseException as e:
+            warnings.warn(e.__str__())
+            self.con.rollback()
+
     def ddl(self):
         try:
             self.cur.execute('SELECT ' +
@@ -40,22 +51,22 @@ class DonorRepository:
             warnings.warn(e.__str__())
             self.con.rollback()
 
-    def unique_prostate_donors(self) -> list:
+    def unique_prostate_donors(self, _table) -> list:
         donors = []
-        self.cur.execute('SELECT DISTINCT sv_intra.donor_id FROM sv_intra ' +
-                         'INNER JOIN donor_tumour ON sv_intra.donor_id = submitted_donor_id ' +
+        self.cur.execute(f'SELECT DISTINCT {_table}.donor_id FROM {_table} ' +
+                         f'INNER JOIN donor_tumour ON {_table}.donor_id = submitted_donor_id ' +
                          'WHERE histology_tier2 = \'Prostate\'')
         rows = self.cur.fetchall()
         for row in rows:
             donors.append(row[0])
         return donors
 
-    def get_pcawg(self):
-        donors = self.unique_prostate_donors()
+    def get_pcawg(self, _table):
+        donors = self.unique_prostate_donors(_table)
         donors = set(donors)
         donor_chr_pairs = set()
         for donor in donors:
-            self.cur.execute(f'SELECT chr FROM sv_intra WHERE donor_id = \'{donor}\'')
+            self.cur.execute(f'SELECT chr FROM {_table} WHERE donor_id = \'{donor}\'')
             rows = self.cur.fetchall()
             for row in rows:
                 donor_chr_pairs.add((donor, row[0]))
@@ -123,18 +134,18 @@ class DonorRepository:
         triplet = self.cur.fetchone()
         return triplet
 
-    def get_donor_sv_chr_1_21(self, donor):
+    def get_donor_sv_chr_1_21(self, donor, _table):
         regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
         self.cur.execute(
-            f'SELECT * FROM sv_intra \
+            f'SELECT * FROM {_table} \
             WHERE donor_id = \'{donor}\' \
             AND chr SIMILAR TO \'{regex_up_to_21}\'')
         rows = self.cur.fetchall()
         return rows
 
-    def get_donor_chr_svs(self, donor, chr):
+    def get_donor_chr_svs(self, donor, chr, _table):
         self.cur.execute(
-            f'SELECT bp1, bp2 FROM sv_intra \
+            f'SELECT bp1, bp2 FROM {_table} \
                 WHERE donor_id = \'{donor}\' \
                   AND chr = \'{chr}\'')
         rows = self.cur.fetchall()
@@ -268,6 +279,27 @@ class DonorRepository:
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()
+
+    def insert_sv_frankenstein(self, donor, chr_n, bp1, bp2):
+        try:
+            self.cur.execute(
+                'SELECT * FROM frankenstein ' +
+                f'WHERE donor_id = \'{donor}\' ' +
+                f'  AND chr = \'{chr_n}\' ' +
+                f'  AND bp1 = \'{bp1}\' ' +
+                f'  AND bp2 = \'{bp2}\' '
+            )
+            rows = self.cur.fetchall()
+            if not rows:
+                self.cur.execute(
+                    f'INSERT INTO frankenstein (donor_id, chr, bp1, bp2) '
+                    f'VALUES (\'{donor}\', \'{chr_n}\', \'{bp1}\', \'{bp2}\')'
+                )
+                self.con.commit()
+        except BaseException as e:
+            warnings.warn(e.__str__())
+            self.con.rollback()
+
 
     def insert_donorinfo(self, donor, chr_n, f_id):
         try:
