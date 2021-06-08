@@ -143,6 +143,15 @@ class DonorRepository:
         rows = self.cur.fetchall()
         return rows
 
+    def get_donor_chrs_1_21(self, donor, _table):
+        regex_up_to_21 = '(2[0-1]|1[0-9]|[1-9])'
+        self.cur.execute(
+            f'SELECT DISTINCT chr FROM {_table} \
+            WHERE donor_id = \'{donor}\' \
+            AND chr SIMILAR TO \'{regex_up_to_21}\'')
+        rows = self.cur.fetchall()
+        return rows
+
     def get_donor_chr_svs(self, donor, chr, _table):
         self.cur.execute(
             f'SELECT bp1, bp2 FROM {_table} \

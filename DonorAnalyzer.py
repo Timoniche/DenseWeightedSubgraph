@@ -9,7 +9,8 @@ import os
 import sys
 
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
-    plot_seek_distibution, plot_seek_compare, plot_sustainability, div_with_none, filter_nones, plot_mixed_denss
+    plot_seek_distibution, plot_seek_compare, plot_sustainability, div_with_none, filter_nones, plot_mixed_denss, \
+    find_first_predicate_index
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution, \
     filter_chr_svs_with_resolution
@@ -42,6 +43,16 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
     corr_densities = []
     corr_sv_cnt = []
     corr_edges_cnt = []
+
+
+    # filtered svs should present in the database
+    ALL_DONOR_CHRS = rep.get_donor_chrs_1_21(donor, _table)
+    ALL_DONOR_CHRS = list(map(lambda row: row[0], ALL_DONOR_CHRS))
+    for _chr in ALL_DONOR_CHRS:
+        if not chr_sv_map.get(_chr, []):
+            rep.insert_donorinfo(donor, _chr, f_id)
+            info_id = rep.get_info_id(donor, _chr, f_id)
+            rep.insert_dense(info_id, 0)
 
     for (chr_n, coord_pairs) in chr_sv_map.items():
 
@@ -93,6 +104,9 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
                         outfile.write(f'{i} {j} {close_f}\n')
 
         if number_of_edges == 0:
+            rep.insert_donorinfo(donor, chr_n, f_id)
+            info_id = rep.get_info_id(donor, chr_n, f_id)
+            rep.insert_dense(info_id, 0)
             continue
 
         some_delta_just_for_sure = 5
@@ -239,8 +253,9 @@ def main():
 
 
 def seek_hills_distrib(ratio, fid=16):
-    infoids_sorted_by_dens, infoids, thresholds = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False, periphery_plot=False,
-                            cluster_plot=False)
+    infoids_sorted_by_dens, infoids, thresholds = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False,
+                                                                periphery_plot=False,
+                                                                cluster_plot=False)
     cnt_left = 0
     cnt_right = 0
     sz = len(infoids)
@@ -263,7 +278,7 @@ def seek_hills_distrib(ratio, fid=16):
 
 
 def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot=True, seek_plot=True, chr_num=-1,
-                  weights=None, cluster_threshold_sz=0, dens_threshold=0, types5plot=False, _table='sv_intra'):
+                  weights=None, cluster_threshold_sz=0, dens_threshold=0.0, types5plot=False, _table='sv_intra'):
     if weights is None:
         weights = []
     t1 = time.time()
@@ -295,7 +310,14 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
         code = rep.get_proximity_code(f_id)
 
         denss = list(map(lambda x: x[0], denss_info))
-        print(f'avg dens: {np.average(denss)}')
+        print(f'f_id={f_id}')
+        print(f'avg density: {np.average(denss)}')
+        print(f'high quantile density: {np.quantile(denss, 0.75)}')
+        print(f'avg cluster: {np.average(clusters)}')
+        print(f'high quantile cluster: {np.quantile(clusters, 0.75)}')
+        print(f'avg periphery: {np.average(peripheries)}')
+        print(f'high quantile periphery: {np.quantile(peripheries, 0.75)}')
+        print(f'cnt: {len(denss)}')
 
         top_ratio_infos_sorted_by_dens = sorted(denss_info, key=lambda p: p[0])
         infoids_sorted_by_dens = list(map(lambda p: p[1], top_ratio_infos_sorted_by_dens))
@@ -335,7 +357,7 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
 
     t2 = time.time()
     # print(f'plots took {t2 - t1} sec')
-    return infoids_sorted_by_dens, infoids_after_ratio, thresholds
+    return infoids_sorted_by_dens, sorted(denss), infoids_after_ratio, thresholds
 
 
 def chrs_per_donor_summary(infoids_sorted_by_dens, ratios):
@@ -464,15 +486,24 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [16]
+    iss = [1]
     # for i in range(1, 4):
+    threshold_hic_dens = 9201.571
+    # threshold_hic_dens = 2.7495356
     for i in iss:
-        all_infoids_by_denss, infoids_after_ratios, thresholds = hist_patients(i, ratio=ratio, dens_plot=True,
-                                                                               seek_plot=True,
-                                                                               periphery_plot=True,
-                                                                               cluster_plot=True,
-                                                                               cluster_threshold_sz=0, dens_threshold=0,
-                                                                               types5plot=True)
+        all_infoids_by_denss, sorted_denss, infoids_after_ratios, thresholds = hist_patients(i, ratio=ratio,
+                                                                                             dens_plot=True,
+                                                                                             seek_plot=False,
+                                                                                             periphery_plot=False,
+                                                                                             cluster_plot=False,
+                                                                                             cluster_threshold_sz=0,
+                                                                                             dens_threshold=0.00001,
+                                                                                             types5plot=False)
+        densss = sorted_denss[int(ratio * len(sorted_denss))]
+        print(densss)
+        index_ = find_first_predicate_index(sorted_denss, lambda d: d > threshold_hic_dens)
+        print(f'cnt chromo ids: {len(all_infoids_by_denss) - index_}')
+
 
 def cnt_chr_weights(fid):
     weights = []
@@ -773,6 +804,14 @@ def frankenstein_hic(x):
     return x
 
 
+def frankenstein_hic_oe_480kb(x):
+    return x
+
+
+def frankenstein_hic_40kb(x):
+    return x
+
+
 def filter_identity_hic_480kb(x):
     return x
 
@@ -783,7 +822,7 @@ def filter_identity_hic_40kb(x):
 
 def hic_oe_analyzer(cool, f, _table, oe=False):
     t1 = time.time()
-    cluster_threshold_size = 2
+    cluster_threshold_size = 0
     with DonorRepository() as rep:
         rep.ddl()
         rep.insert_proximity(f)
@@ -1060,10 +1099,62 @@ def cluster_size_test(ratio):
     print(f'NO chromo median: {med}, high quantile: {q75}, avg: {avg}')
 
 
+def test_cnt_ids():
+    #i13 = 13
+    #i17f = 17
+    i13 = 11
+    i17f = 16
+    all_infoids_by_denss13, sorted_denss13, infoids_after_ratios13, thresholds13 = hist_patients(i13, ratio=1,
+                                                                                         dens_plot=True,
+                                                                                         seek_plot=False,
+                                                                                         periphery_plot=False,
+                                                                                         cluster_plot=False,
+                                                                                         cluster_threshold_sz=0,
+                                                                                         dens_threshold=0,
+                                                                                         types5plot=False)
+    all_infoids_by_denss17, sorted_denss17, infoids_after_ratios17, thresholds17 = hist_patients(i17f, ratio=1,
+                                                                                         dens_plot=True,
+                                                                                         seek_plot=False,
+                                                                                         periphery_plot=False,
+                                                                                         cluster_plot=False,
+                                                                                         cluster_threshold_sz=0,
+                                                                                         dens_threshold=0,
+                                                                                         types5plot=False)
+    with DonorRepository() as rep:
+        set13 = set()
+        set17f = set()
+        for id13 in all_infoids_by_denss13:
+            donor, chrN, fid = rep.get_by_infoid(id13)
+            set13.add((donor, chrN))
+        for id17 in all_infoids_by_denss17:
+            donor, chrN, fid = rep.get_by_infoid(id17)
+            set17f.add((donor, chrN))
+
+    set_diff13 = set13.difference(set17f)
+    set_diff17 = set17f.difference(set13)
+
+    print('diff 13')
+    print(set_diff13)
+
+    print('diff 17f')
+    print(set_diff17)
+
+    with DonorRepository() as rep:
+        id_1 = rep.get_info_id('0082_CRUK_PC_0082', 13, 13)
+        id_2 = rep.get_info_id('0082_CRUK_PC_0082', 13, 17)
+        print(rep.get_cluster(id_1))
+        print(id_1, id_2)
+
+
+class Tables(str, Enum):
+    SIMULATED = 'frankenstein',
+    REAL = 'sv_intra'
+
+
 if __name__ == '__main__':
     # main()
-
-    all_hists(ratio=0.71)
+    #test_cnt_ids()
+    all_hists(ratio=0.8)
     # cluster_size_test(ratio=0.71)
 
     # seek_test()
@@ -1088,9 +1179,9 @@ if __name__ == '__main__':
 
     # find_the_most_diff_seek_pair(11, 0.75)
 
-    #cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
+    # cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
     # cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
-    #hic_oe_analyzer(cool=cool, f=frankenstein_hic, _table='frankenstein')
+    # hic_oe_analyzer(cool=cool, f=identity_hic, _table=Tables.REAL, oe=False)
 
     # corr_test(4)
 
