@@ -44,7 +44,6 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
     corr_sv_cnt = []
     corr_edges_cnt = []
 
-
     # filtered svs should present in the database
     ALL_DONOR_CHRS = rep.get_donor_chrs_1_21(donor, _table)
     ALL_DONOR_CHRS = list(map(lambda row: row[0], ALL_DONOR_CHRS))
@@ -338,8 +337,9 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
         if dens_plot:
             plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt, text=text_ratios_map)
         thresholds_paths = f'distribution/thresholds/{f_id}.png'
-        thresholds = plot_mixed_denss(sorted(denss), to_plot=types5plot, save_path=thresholds_paths)
-        THRESHOLD_DENSE = kmeans_plot(sorted(denss))
+        # thresholds = plot_mixed_denss(sorted(denss), to_plot=types5plot, save_path=thresholds_paths)
+        thresholds = []
+        THRESHOLD_DENSE = kmeans_plot(sorted(denss), to_plot=types5plot)
 
         cluster_path = f'distribution/clusters/{f_id}.png'
         if cluster_plot:
@@ -489,19 +489,26 @@ def measure_chromos(chromo_clusters):
 def all_hists(ratio):
     iss = [3, 4]
     # for i in range(1, 4):
-    threshold_hic_dens = 220.50214
     # threshold_hic_dens = 2.7495356
     for i in iss:
-        all_infoids_by_denss, sorted_denss, infoids_after_ratios, thresholds, THRESHOLD_DENSE = hist_patients(i, ratio=ratio,
-                                                                                             dens_plot=True,
-                                                                                             seek_plot=False,
-                                                                                             periphery_plot=False,
-                                                                                             cluster_plot=False,
-                                                                                             cluster_threshold_sz=0,
-                                                                                             dens_threshold=0.00000,
-                                                                                             types5plot=False)
+        all_infoids_by_denss, sorted_denss, infoids_after_ratios, thresholds, THRESHOLD_DENSE = hist_patients(i,
+                                                                                                              ratio=ratio,
+                                                                                                              dens_plot=True,
+                                                                                                              seek_plot=False,
+                                                                                                              periphery_plot=False,
+                                                                                                              cluster_plot=False,
+                                                                                                              cluster_threshold_sz=0,
+                                                                                                              dens_threshold=0.00001,
+                                                                                                              types5plot=True)
+        threshold_hic_dens = 231.75531
+        # threshold_hic_dens = THRESHOLD_DENSE
+        denss_path = f'denssForR/{i}/denssForR{i}.npy'
+        create_path_if_not_exist(denss_path)
+        with open(denss_path, 'wb') as fl:
+            np.save(fl, np.array(sorted_denss))
+
         densss = sorted_denss[int(ratio * len(sorted_denss))]
-        print(densss)
+        # print(densss)
         index_ = find_first_predicate_index(sorted_denss, lambda d: d > threshold_hic_dens)
         print(f'cnt chromo ids: {len(all_infoids_by_denss) - index_}')
 
@@ -689,18 +696,18 @@ def shatter_seek_compare(analyze_donor_chr_pairs, seekLabel):
                 seek_chromo_donors.add(seek_donor)
                 seek_chromo_donor_chr_pairs.add((seek_donor, int(chr_seek)))
 
-                iii = rep.get_info_id(seek_donor, chr_seek, f_id=13)
+                iii = rep.get_info_id(seek_donor, chr_seek, f_id=3)
                 cl_sz = len(rep.get_cluster(iii))
                 cl_szs_seek.append(cl_sz)
 
-        pcawg_donors, pcawg_pairs = rep.get_pcawg()
+        pcawg_donors, pcawg_pairs = rep.get_pcawg(Tables.REAL)
 
         print(f'SHATTER SEEK CHROMO: {len(seek_chromo_donors) / len(seek_donors)}')
         COMMON_DONORS = seek_donors.intersection(pcawg_donors)
         COMMON_DONOR_CHR_PAIRS = list(map(lambda e: (e[0], int(e[1])), seek_chr_pairs.intersection(pcawg_pairs)))
 
         # iss = [11, 12, 1, 2, 3]
-        iss = [11]
+        iss = [3]
         ratios = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
         # ratios = [0.75]
         print(f'mode donor chr pairs={analyze_donor_chr_pairs}')
@@ -712,9 +719,14 @@ def shatter_seek_compare(analyze_donor_chr_pairs, seekLabel):
             for ratio in ratios:
                 common_chromo_donor_pairs = []
 
-                sorted_denss, infoids, thresholds = hist_patients(i, ratio=ratio, dens_plot=False, seek_plot=False,
-                                                                  periphery_plot=False,
-                                                                  cluster_plot=False, cluster_threshold_sz=3)
+                infoids_sorted_by_dens, sorted_denss, infoids, thresholds, dens_threshold = hist_patients(i,
+                                                                                                          ratio=ratio,
+                                                                                                          dens_plot=False,
+                                                                                                          seek_plot=False,
+                                                                                                          periphery_plot=False,
+                                                                                                          cluster_plot=False,
+                                                                                                          cluster_threshold_sz=0,
+                                                                                                          dens_threshold=0.00001)
                 chromo_donors = set()
                 chromo_donor_chr_pairs = set()
                 for infoid in infoids:
@@ -1101,26 +1113,26 @@ def cluster_size_test(ratio):
 
 
 def test_cnt_ids():
-    #i13 = 13
-    #i17f = 17
+    # i13 = 13
+    # i17f = 17
     i13 = 11
     i17f = 16
     all_infoids_by_denss13, sorted_denss13, infoids_after_ratios13, thresholds13 = hist_patients(i13, ratio=1,
-                                                                                         dens_plot=True,
-                                                                                         seek_plot=False,
-                                                                                         periphery_plot=False,
-                                                                                         cluster_plot=False,
-                                                                                         cluster_threshold_sz=0,
-                                                                                         dens_threshold=0,
-                                                                                         types5plot=False)
+                                                                                                 dens_plot=True,
+                                                                                                 seek_plot=False,
+                                                                                                 periphery_plot=False,
+                                                                                                 cluster_plot=False,
+                                                                                                 cluster_threshold_sz=0,
+                                                                                                 dens_threshold=0,
+                                                                                                 types5plot=False)
     all_infoids_by_denss17, sorted_denss17, infoids_after_ratios17, thresholds17 = hist_patients(i17f, ratio=1,
-                                                                                         dens_plot=True,
-                                                                                         seek_plot=False,
-                                                                                         periphery_plot=False,
-                                                                                         cluster_plot=False,
-                                                                                         cluster_threshold_sz=0,
-                                                                                         dens_threshold=0,
-                                                                                         types5plot=False)
+                                                                                                 dens_plot=True,
+                                                                                                 seek_plot=False,
+                                                                                                 periphery_plot=False,
+                                                                                                 cluster_plot=False,
+                                                                                                 cluster_threshold_sz=0,
+                                                                                                 dens_threshold=0,
+                                                                                                 types5plot=False)
     with DonorRepository() as rep:
         set13 = set()
         set17f = set()
@@ -1155,10 +1167,11 @@ class Tables(str, Enum):
 def frankenstein_hic_480kb_TEST2(x):
     return x
 
+
 if __name__ == '__main__':
     # main()
-    #test_cnt_ids()
-    all_hists(ratio=0.7)
+    # test_cnt_ids()
+    # all_hists(ratio=0.72)
     # cluster_size_test(ratio=0.71)
 
     # seek_test()
@@ -1167,7 +1180,7 @@ if __name__ == '__main__':
 
     # shatter_seek_compare(analyze_donor_chr_pairs=False, seekLabel=SeekClassification.HIGH)
 
-    # shatter_seek_compare(analyze_donor_chr_pairs=True)
+    # shatter_seek_compare(analyze_donor_chr_pairs=True, seekLabel=SeekClassification.HIGH)
 
     # gmm_seek_5types_compare(analyze_donor_chr_pairs=False, seekLabel=SeekClassification.NO)
     # diff_example_own_seek(11, 0.75)
@@ -1183,11 +1196,11 @@ if __name__ == '__main__':
 
     # find_the_most_diff_seek_pair(11, 0.75)
 
-    #cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
-    #cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
-    #hic_oe_analyzer(cool=cool, f=identity_hic_40kb, _table=Tables.REAL, oe=False)
-    #hic_oe_analyzer(cool=cool, f=frankenstein_hic_480kb_TEST2, _table=Tables.SIMULATED, oe=False)
+    # cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
+    # cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
+    # hic_oe_analyzer(cool=cool, f=identity_hic_40kb, _table=Tables.REAL, oe=False)
+    # hic_oe_analyzer(cool=cool, f=frankenstein_hic_480kb_TEST2, _table=Tables.SIMULATED, oe=False)
 
-    # corr_test(4)
+    corr_test(3)
 
     # cluster_sustainability_percentile_test()

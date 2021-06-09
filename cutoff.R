@@ -1,0 +1,16 @@
+library(RcppCNPy)
+library(cutoff)
+library(ggplot2)
+# densmat <- npyLoad("denssForR/3/denssForR3.npy")
+densmat <- npyLoad("denssForR/4/denssForR4.npy")
+length(densmat)
+range(densmat)
+png(file= "/denssForR/Rfrankenstein40kb.jpeg",
+width=1080, height=800)
+hist(densmat, 100, freq=F, xlab="density",ylab="probability",main=NULL,col="grey")
+lines(density(densmat),lwd=1.5,col="blue")
+dev.off()
+# (densmat_out <- em(densmat,"normal","normal"))
+# lines(densmat_out,lwd=1.5,col="red")
+#
+# (cut_off <- cutoff(densmat_out))

@@ -1,6 +1,7 @@
 import errno
 import os
 import statistics
+from math import log10
 
 import matplotlib.pyplot as plt
 import cooler
@@ -9,6 +10,7 @@ import numpy as np
 import inspect
 
 from matplotlib import rcParams
+from scipy.stats import stats
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
@@ -108,10 +110,26 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
     plt.show()
 
 
-def kmeans_plot(denss):
-    km = KMeans(n_clusters=2)
+def kmeans_plot(denss, to_plot):
+    #print(stats.kstest(denss, 'expon'))
+    km = KMeans(n_clusters=2, n_init=50)
+    # denss = list(map(lambda x : log10(x), denss))
     km.fit(np.array(denss).reshape(-1, 1))
     index = find_first_predicate_index(km.labels_, lambda x: x == 1)
+    hill1 = denss[:index]
+    hill2 = denss[index:]
+    sz = max(denss) - min(denss)
+    bins_cnt = 100
+    if hill1:
+        sz1 = max(hill1) - min(hill1)
+        bins1 = int(bins_cnt * sz1 / sz)
+    else:
+        bins1 = 1
+    sz2 = max(hill2) - min(hill2)
+    if to_plot:
+        plt.hist(hill1, bins=bins1, color='blue')
+        plt.hist(hill2, bins=int(bins_cnt * sz2 / sz), color='red')
+        plt.show()
     print(f'threshold dense {denss[index]}')
     return denss[index]
 
