@@ -10,7 +10,7 @@ import sys
 
 from DenseUtils import heatmap_with_breakpoints_and_cluster, create_path_if_not_exist, plot_distribution, perf_measure, \
     plot_seek_distibution, plot_seek_compare, plot_sustainability, div_with_none, filter_nones, plot_mixed_denss, \
-    find_first_predicate_index
+    find_first_predicate_index, kmeans_plot
 from DonorRepository import DonorRepository
 from DonorService import collect_chr_bins_map_with_resolution, bps_to_bins_with_resolution, filter_svs_with_resolution, \
     filter_chr_svs_with_resolution
@@ -339,6 +339,7 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
             plot_distribution(denss, dens_path, code, 'density', 'density', ratio, buckets_cnt, text=text_ratios_map)
         thresholds_paths = f'distribution/thresholds/{f_id}.png'
         thresholds = plot_mixed_denss(sorted(denss), to_plot=types5plot, save_path=thresholds_paths)
+        THRESHOLD_DENSE = kmeans_plot(sorted(denss))
 
         cluster_path = f'distribution/clusters/{f_id}.png'
         if cluster_plot:
@@ -357,7 +358,7 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
 
     t2 = time.time()
     # print(f'plots took {t2 - t1} sec')
-    return infoids_sorted_by_dens, sorted(denss), infoids_after_ratio, thresholds
+    return infoids_sorted_by_dens, sorted(denss), infoids_after_ratio, thresholds, THRESHOLD_DENSE
 
 
 def chrs_per_donor_summary(infoids_sorted_by_dens, ratios):
@@ -488,17 +489,17 @@ def measure_chromos(chromo_clusters):
 def all_hists(ratio):
     iss = [3, 4]
     # for i in range(1, 4):
-    threshold_hic_dens = 200
+    threshold_hic_dens = 220.50214
     # threshold_hic_dens = 2.7495356
     for i in iss:
-        all_infoids_by_denss, sorted_denss, infoids_after_ratios, thresholds = hist_patients(i, ratio=ratio,
+        all_infoids_by_denss, sorted_denss, infoids_after_ratios, thresholds, THRESHOLD_DENSE = hist_patients(i, ratio=ratio,
                                                                                              dens_plot=True,
                                                                                              seek_plot=False,
                                                                                              periphery_plot=False,
                                                                                              cluster_plot=False,
                                                                                              cluster_threshold_sz=0,
-                                                                                             dens_threshold=0.000001,
-                                                                                             types5plot=True)
+                                                                                             dens_threshold=0.00000,
+                                                                                             types5plot=False)
         densss = sorted_denss[int(ratio * len(sorted_denss))]
         print(densss)
         index_ = find_first_predicate_index(sorted_denss, lambda d: d > threshold_hic_dens)

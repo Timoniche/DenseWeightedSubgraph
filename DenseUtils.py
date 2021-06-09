@@ -9,6 +9,7 @@ import numpy as np
 import inspect
 
 from matplotlib import rcParams
+from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
 from DonorRepository import DonorRepository
@@ -105,6 +106,15 @@ def plot_seek_distibution(top_ratio_infos_sorted_by_dens, buckets_cnt, rep: Dono
     create_path_if_not_exist(store_path)
     plt.savefig(store_path)
     plt.show()
+
+
+def kmeans_plot(denss):
+    km = KMeans(n_clusters=2)
+    km.fit(np.array(denss).reshape(-1, 1))
+    index = find_first_predicate_index(km.labels_, lambda x: x == 1)
+    print(f'threshold dense {denss[index]}')
+    return denss[index]
+
 
 def plot_mixed_denss(denss, to_plot, save_path):
     i_denss = list(enumerate(denss))
