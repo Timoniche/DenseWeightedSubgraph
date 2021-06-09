@@ -497,8 +497,8 @@ def all_hists(ratio):
                                                                                              periphery_plot=False,
                                                                                              cluster_plot=False,
                                                                                              cluster_threshold_sz=0,
-                                                                                             dens_threshold=0.000000,
-                                                                                             types5plot=False)
+                                                                                             dens_threshold=0.000001,
+                                                                                             types5plot=True)
         densss = sorted_denss[int(ratio * len(sorted_denss))]
         print(densss)
         index_ = find_first_predicate_index(sorted_denss, lambda d: d > threshold_hic_dens)

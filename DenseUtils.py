@@ -129,6 +129,8 @@ def plot_mixed_denss(denss, to_plot, save_path):
     colors = ['green', 'red', 'blue', 'orange', 'grey']
     if to_plot:
         for i in range(n_components):
+            if bins[i] == 0:
+                continue
             plt.hist(hills[i], bins=bins[i], color= colors[i])
         create_path_if_not_exist(save_path)
         plt.savefig(save_path)
