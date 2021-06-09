@@ -25,6 +25,17 @@ class DonorRepository:
         )
         self.cur = self.con.cursor()
 
+    def random_frankenstein_ddl(self):
+        try:
+            self.cur.execute('SELECT ' +
+                             'to_regclass(\'random_frankenstein\') ')
+            rows = self.cur.fetchall()
+            if None in rows[0]:
+                self.cur.execute(open(self.sqlpath + '/random_frankenstein.sql', "r").read())
+        except BaseException as e:
+            warnings.warn(e.__str__())
+            self.con.rollback()
+
     def frankenstein_ddl(self):
         try:
             self.cur.execute('SELECT ' +
@@ -50,6 +61,14 @@ class DonorRepository:
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()
+
+    def get_random_frankenstein_donors(self):
+        donors = []
+        self.cur.execute('SELECT DISTINCT(donor_id) FROM random_frankenstein')
+        rows = self.cur.fetchall()
+        for row in rows:
+            donors.append(row[0])
+        return donors
 
     def unique_prostate_donors(self, _table) -> list:
         donors = []
@@ -289,10 +308,10 @@ class DonorRepository:
             warnings.warn(e.__str__())
             self.con.rollback()
 
-    def insert_sv_frankenstein(self, donor, chr_n, bp1, bp2):
+    def insert_sv_frankenstein(self, donor, chr_n, bp1, bp2, _table):
         try:
             self.cur.execute(
-                'SELECT * FROM frankenstein ' +
+                f'SELECT * FROM {_table} ' +
                 f'WHERE donor_id = \'{donor}\' ' +
                 f'  AND chr = \'{chr_n}\' ' +
                 f'  AND bp1 = \'{bp1}\' ' +
@@ -301,14 +320,13 @@ class DonorRepository:
             rows = self.cur.fetchall()
             if not rows:
                 self.cur.execute(
-                    f'INSERT INTO frankenstein (donor_id, chr, bp1, bp2) '
+                    f'INSERT INTO {_table} (donor_id, chr, bp1, bp2) '
                     f'VALUES (\'{donor}\', \'{chr_n}\', \'{bp1}\', \'{bp2}\')'
                 )
                 self.con.commit()
         except BaseException as e:
             warnings.warn(e.__str__())
             self.con.rollback()
-
 
     def insert_donorinfo(self, donor, chr_n, f_id):
         try:

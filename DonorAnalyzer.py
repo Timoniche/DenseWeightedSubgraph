@@ -277,7 +277,8 @@ def seek_hills_distrib(ratio, fid=16):
 
 
 def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot=True, seek_plot=True, chr_num=-1,
-                  weights=None, cluster_threshold_sz=0, dens_threshold=0.0, types5plot=False, _table='sv_intra'):
+                  weights=None, cluster_threshold_sz=0, dens_threshold=0.0, types5plot=False, _table='sv_intra',
+                  own_donors=None):
     if weights is None:
         weights = []
     t1 = time.time()
@@ -286,7 +287,10 @@ def hist_patients(f_id, ratio, dens_plot=True, cluster_plot=True, periphery_plot
     peripheries = []
     infoids_after_ratio = []
     with DonorRepository() as rep:
-        donors = rep.unique_prostate_donors(_table)
+        if not own_donors:
+            donors = rep.unique_prostate_donors(_table)
+        else:
+            donors = own_donors
         for donor in donors:
             if chr_num == -1:
                 rng = range(1, 22)
@@ -487,7 +491,9 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [3, 4]
+    with DonorRepository() as rep:
+        own_donors = rep.get_random_frankenstein_donors()
+    iss = [18]
     # for i in range(1, 4):
     # threshold_hic_dens = 2.7495356
     for i in iss:
@@ -498,8 +504,9 @@ def all_hists(ratio):
                                                                                                               periphery_plot=False,
                                                                                                               cluster_plot=False,
                                                                                                               cluster_threshold_sz=0,
-                                                                                                              dens_threshold=0.00001,
-                                                                                                              types5plot=True)
+                                                                                                              dens_threshold=0.000001,
+                                                                                                              types5plot=True,
+                                                                                                              own_donors=own_donors)
         threshold_hic_dens = 231.75531
         # threshold_hic_dens = THRESHOLD_DENSE
         denss_path = f'denssForR/{i}/denssForR{i}.npy'
@@ -833,14 +840,18 @@ def filter_identity_hic_40kb(x):
     return x
 
 
-def hic_oe_analyzer(cool, f, _table, oe=False):
+def hic_oe_analyzer(cool, f, _table, oe=False, own_donors=None):
     t1 = time.time()
     cluster_threshold_size = 0
     with DonorRepository() as rep:
         rep.ddl()
         rep.insert_proximity(f)
         f_id = rep.get_proximity_id(inspect.getsource(f))
-        donors = rep.unique_prostate_donors(_table)
+
+        if not own_donors:
+            donors = rep.unique_prostate_donors(_table)
+        else:
+            donors = own_donors
 
         corr_path = f'distribution/corr/{f_id}/corr_arrays.npy'
         create_path_if_not_exist(corr_path)
@@ -1162,16 +1173,19 @@ def test_cnt_ids():
 class Tables(str, Enum):
     SIMULATED = 'frankenstein',
     REAL = 'sv_intra'
+    SIMULATED_RANDOM = 'random_frankenstein'
 
 
 def frankenstein_hic_480kb_TEST2(x):
     return x
 
+def random_frankenstein_40kb(x):
+    return x
 
 if __name__ == '__main__':
     # main()
     # test_cnt_ids()
-    # all_hists(ratio=0.72)
+    all_hists(ratio=0.72)
     # cluster_size_test(ratio=0.71)
 
     # seek_test()
@@ -1197,10 +1211,14 @@ if __name__ == '__main__':
     # find_the_most_diff_seek_pair(11, 0.75)
 
     # cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
-    # cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
+    #cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
     # hic_oe_analyzer(cool=cool, f=identity_hic_40kb, _table=Tables.REAL, oe=False)
-    # hic_oe_analyzer(cool=cool, f=frankenstein_hic_480kb_TEST2, _table=Tables.SIMULATED, oe=False)
 
-    corr_test(3)
+    # with DonorRepository() as rep:
+    #     own_donors = rep.get_random_frankenstein_donors()
+    # hic_oe_analyzer(cool=cool, f=random_frankenstein_40kb, _table=Tables.SIMULATED_RANDOM, oe=False,
+    #                 own_donors=own_donors)
+
+    #corr_test(3)
 
     # cluster_sustainability_percentile_test()
