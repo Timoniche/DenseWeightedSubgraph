@@ -24,17 +24,12 @@ def collect_frankenshteins():
         for i in range(1, 22):
             random.shuffle(CHR_SV_PROVIDER_POOL[str(i)])
 
-        summm = 0
-        for i in range(1, 22):
-            summm += len(CHR_SV_PROVIDER_POOL[str(i)])
-
         for (_donor, _chr) in prostate_pcawg_pairs:
             if _chr != '22' and _chr != 'X' and _chr != 'Y':
                 sz = donor_chr_sv_sz_map[(_donor, _chr)]
                 for i in range(sz):
                     bp1, bp2 = CHR_SV_PROVIDER_POOL[_chr].pop()
                     rep.insert_sv_frankenstein(_donor, _chr, bp1, bp2)
-        print('Hello!')
 
 
 def main():

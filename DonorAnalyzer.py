@@ -46,13 +46,13 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
 
 
     # filtered svs should present in the database
-    # ALL_DONOR_CHRS = rep.get_donor_chrs_1_21(donor, _table)
-    # ALL_DONOR_CHRS = list(map(lambda row: row[0], ALL_DONOR_CHRS))
-    # for _chr in ALL_DONOR_CHRS:
-    #     if not chr_sv_map.get(_chr, []):
-    #         rep.insert_donorinfo(donor, _chr, f_id)
-    #         info_id = rep.get_info_id(donor, _chr, f_id)
-    #         rep.insert_dense(info_id, 0)
+    ALL_DONOR_CHRS = rep.get_donor_chrs_1_21(donor, _table)
+    ALL_DONOR_CHRS = list(map(lambda row: row[0], ALL_DONOR_CHRS))
+    for _chr in ALL_DONOR_CHRS:
+        if not chr_sv_map.get(_chr, []):
+            rep.insert_donorinfo(donor, _chr, f_id)
+            info_id = rep.get_info_id(donor, _chr, f_id)
+            rep.insert_dense(info_id, 0)
 
     for (chr_n, coord_pairs) in chr_sv_map.items():
 
@@ -822,7 +822,7 @@ def filter_identity_hic_40kb(x):
 
 def hic_oe_analyzer(cool, f, _table, oe=False):
     t1 = time.time()
-    cluster_threshold_size = 2
+    cluster_threshold_size = 0
     with DonorRepository() as rep:
         rep.ddl()
         rep.insert_proximity(f)
