@@ -46,13 +46,13 @@ def analyze_donor(donor, cooler, f_id, f_proximity, rep: DonorRepository, hic_pl
 
 
     # filtered svs should present in the database
-    ALL_DONOR_CHRS = rep.get_donor_chrs_1_21(donor, _table)
-    ALL_DONOR_CHRS = list(map(lambda row: row[0], ALL_DONOR_CHRS))
-    for _chr in ALL_DONOR_CHRS:
-        if not chr_sv_map.get(_chr, []):
-            rep.insert_donorinfo(donor, _chr, f_id)
-            info_id = rep.get_info_id(donor, _chr, f_id)
-            rep.insert_dense(info_id, 0)
+    # ALL_DONOR_CHRS = rep.get_donor_chrs_1_21(donor, _table)
+    # ALL_DONOR_CHRS = list(map(lambda row: row[0], ALL_DONOR_CHRS))
+    # for _chr in ALL_DONOR_CHRS:
+    #     if not chr_sv_map.get(_chr, []):
+    #         rep.insert_donorinfo(donor, _chr, f_id)
+    #         info_id = rep.get_info_id(donor, _chr, f_id)
+    #         rep.insert_dense(info_id, 0)
 
     for (chr_n, coord_pairs) in chr_sv_map.items():
 
@@ -486,9 +486,9 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    iss = [1]
+    iss = [3, 4]
     # for i in range(1, 4):
-    threshold_hic_dens = 9201.571
+    threshold_hic_dens = 200
     # threshold_hic_dens = 2.7495356
     for i in iss:
         all_infoids_by_denss, sorted_denss, infoids_after_ratios, thresholds = hist_patients(i, ratio=ratio,
@@ -497,7 +497,7 @@ def all_hists(ratio):
                                                                                              periphery_plot=False,
                                                                                              cluster_plot=False,
                                                                                              cluster_threshold_sz=0,
-                                                                                             dens_threshold=0.00001,
+                                                                                             dens_threshold=0.000000,
                                                                                              types5plot=False)
         densss = sorted_denss[int(ratio * len(sorted_denss))]
         print(densss)
@@ -792,7 +792,7 @@ def identity_hic_oe(x):
     return x
 
 
-def high_resolution_hic(x):
+def identity_hic_40kb(x):
     return x
 
 
@@ -822,7 +822,7 @@ def filter_identity_hic_40kb(x):
 
 def hic_oe_analyzer(cool, f, _table, oe=False):
     t1 = time.time()
-    cluster_threshold_size = 0
+    cluster_threshold_size = 2
     with DonorRepository() as rep:
         rep.ddl()
         rep.insert_proximity(f)
@@ -1151,10 +1151,13 @@ class Tables(str, Enum):
     REAL = 'sv_intra'
 
 
+def frankenstein_hic_480kb_TEST2(x):
+    return x
+
 if __name__ == '__main__':
     # main()
     #test_cnt_ids()
-    all_hists(ratio=0.8)
+    all_hists(ratio=0.7)
     # cluster_size_test(ratio=0.71)
 
     # seek_test()
@@ -1179,9 +1182,10 @@ if __name__ == '__main__':
 
     # find_the_most_diff_seek_pair(11, 0.75)
 
-    # cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
-    # cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
-    # hic_oe_analyzer(cool=cool, f=identity_hic, _table=Tables.REAL, oe=False)
+    #cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
+    #cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
+    #hic_oe_analyzer(cool=cool, f=identity_hic_40kb, _table=Tables.REAL, oe=False)
+    #hic_oe_analyzer(cool=cool, f=frankenstein_hic_480kb_TEST2, _table=Tables.SIMULATED, oe=False)
 
     # corr_test(4)
 
