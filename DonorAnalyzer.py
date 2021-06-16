@@ -252,9 +252,10 @@ def main():
 
 
 def seek_hills_distrib(ratio, fid=16):
-    infoids_sorted_by_dens, infoids, thresholds = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False,
+    infoids_sorted_by_dens, sorted_denss, infoids, thresholds, thr_dens = hist_patients(f_id=fid, ratio=0, dens_plot=False, seek_plot=False,
                                                                 periphery_plot=False,
-                                                                cluster_plot=False)
+                                                                cluster_plot=False,
+                                                                dens_threshold=0.00001)
     cnt_left = 0
     cnt_right = 0
     sz = len(infoids)
@@ -491,9 +492,9 @@ def measure_chromos(chromo_clusters):
 
 
 def all_hists(ratio):
-    with DonorRepository() as rep:
-        own_donors = rep.get_random_frankenstein_donors()
-    iss = [18]
+    # with DonorRepository() as rep:
+    #     own_donors = rep.get_random_frankenstein_donors()
+    iss = [3, 19]
     # for i in range(1, 4):
     # threshold_hic_dens = 2.7495356
     for i in iss:
@@ -505,8 +506,9 @@ def all_hists(ratio):
                                                                                                               cluster_plot=False,
                                                                                                               cluster_threshold_sz=0,
                                                                                                               dens_threshold=0.000001,
-                                                                                                              types5plot=True,
-                                                                                                              own_donors=own_donors)
+                                                                                                              types5plot=True
+                                                                                                              # own_donors=own_donors
+                                                                                                              )
         threshold_hic_dens = 231.75531
         # threshold_hic_dens = THRESHOLD_DENSE
         denss_path = f'denssForR/{i}/denssForR{i}.npy'
@@ -1179,13 +1181,19 @@ class Tables(str, Enum):
 def frankenstein_hic_480kb_TEST2(x):
     return x
 
+
 def random_frankenstein_40kb(x):
     return x
+
+
+def f_hic_40kb_zero_power(x):
+    return 1
+
 
 if __name__ == '__main__':
     # main()
     # test_cnt_ids()
-    all_hists(ratio=0.72)
+    #all_hists(ratio=0.72)
     # cluster_size_test(ratio=0.71)
 
     # seek_test()
@@ -1205,20 +1213,20 @@ if __name__ == '__main__':
 
     # weighted_hist(11, 0.7)
 
-    # l, r = seek_hills_distrib(0.71, fid=11)
-    # print(l, r)
+    l, r = seek_hills_distrib(0.72, fid=3)
+    print(l, r)
 
     # find_the_most_diff_seek_pair(11, 0.75)
 
     # cool = cooler.Cooler('healthy_hics/new_cool_480kb.cool')
     #cool = cooler.Cooler('healthy_hics/GSM3564252_RWPE1_HiC_40k.normalized.matrix.cool')
-    # hic_oe_analyzer(cool=cool, f=identity_hic_40kb, _table=Tables.REAL, oe=False)
+    #hic_oe_analyzer(cool=cool, f=f_hic_40kb_zero_power, _table=Tables.REAL, oe=False)
 
     # with DonorRepository() as rep:
     #     own_donors = rep.get_random_frankenstein_donors()
     # hic_oe_analyzer(cool=cool, f=random_frankenstein_40kb, _table=Tables.SIMULATED_RANDOM, oe=False,
     #                 own_donors=own_donors)
 
-    #corr_test(3)
+    # corr_test(3)
 
     # cluster_sustainability_percentile_test()
